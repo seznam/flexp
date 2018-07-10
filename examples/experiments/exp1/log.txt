@@ -1,0 +1,4 @@
+2018-04-26 10:46:30,350:DEBUG - Starting.
+2018-04-26 21:37:24,311:DEBUG - Ended.
+2018-04-26 21:43:34,920:INFO - metadata have been saved to flexp_info.txt
+2018-04-26 21:43:34,920:INFO - experiment folder: exp1

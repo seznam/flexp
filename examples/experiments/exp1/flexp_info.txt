@@ -1,0 +1,3 @@
+Start time: 2018-04-26-10-46-29
+End time: 2018-04-26-21-43-34
+Command: python my_script.py --desc exp1

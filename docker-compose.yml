@@ -1,0 +1,9 @@
+version: '3'
+services:
+  tests:
+    build:
+      context: .
+      dockerfile: /tests/Dockerfile
+    volumes:
+    - ".:/app"
+    entrypoint: pytest
