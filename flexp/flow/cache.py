@@ -135,7 +135,7 @@ class PickleCache(Chain, PickleMixin):
             return dump_string + obj
         else:
             try:
-                items = sorted(obj.__dict__.items())
+                items = sorted(vars(obj).items())
             except:
                 try:
                     items = sorted(obj.items())
@@ -211,7 +211,7 @@ class PickleCache(Chain, PickleMixin):
                 chain_repr.append(self._get_chain_repr(module))
             elif hasattr(module, 'process'):  # module is an object
                 chain_repr.extend(
-                    (str(module.__class__), repr(module.__dict__)))
+                    (str(module.__class__), repr(vars(module))))
             else:  # module is a function
                 if isinstance(module, partial):  # partial function
                     chain_repr.extend((str(module.__class__), repr(module.func),
