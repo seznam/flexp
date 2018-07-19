@@ -130,19 +130,22 @@ class PickleCache(Chain, PickleMixin):
             dump_string += obj.__name__.encode("ASCII")
 
         # Get insides of the objects, based on the type
-        if isinstance(obj, dict):  # module is a dict
-            items = sorted(obj.items())
-        elif isinstance(obj, list) or (
-                isinstance(obj, collections.Iterable) and not isinstance(obj,
-                                                                         str)):  # module is a list
-            items = [(str(i), o) for i, o in enumerate(obj)]
+        items = []
+        if isinstance(obj, str):
+            return dump_string + obj
         else:
-            items = sorted(obj.__dict__.items())
+            try:
+                items = sorted(vars(obj).items())
+            except:
+                try:
+                    items = sorted(obj.items())
+                except:
+                    items = [(str(i), o) for i, o in enumerate(obj)]
+
         for attribute, value in items:
             try:
                 try:
-                    dump_string += self._object_dump_to_string(attribute,
-                                                               level + 1)
+                    dump_string += self._object_dump_to_string(attribute, level + 1)
                 except:
                     dump_string += self.pickle(attribute)
             except pickle.PicklingError:  # attribute could not be dumped
@@ -208,7 +211,7 @@ class PickleCache(Chain, PickleMixin):
                 chain_repr.append(self._get_chain_repr(module))
             elif hasattr(module, 'process'):  # module is an object
                 chain_repr.extend(
-                    (str(module.__class__), repr(module.__dict__)))
+                    (str(module.__class__), repr(vars(module))))
             else:  # module is a function
                 if isinstance(module, partial):  # partial function
                     chain_repr.extend((str(module.__class__), repr(module.func),
