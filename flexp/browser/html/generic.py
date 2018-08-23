@@ -6,7 +6,6 @@ from __future__ import unicode_literals
 import csv
 import io
 import os
-import random
 import re
 import sys
 import html as html_module
