@@ -27,7 +27,7 @@ py_version = sys.version_info[0]
 class TxtToHtml(ToHtml):
     """Print file content"""
 
-    def __init__(self, file_name_pattern=".*\.txt", title="Text files", editable=True, keep_html=False, trim_at=100):
+    def __init__(self, file_name_pattern=".*\.txt", title="Text files", editable=True, keep_html=False, max_rows=100):
         """
 
         :param file_name_pattern:
@@ -39,7 +39,7 @@ class TxtToHtml(ToHtml):
         super(TxtToHtml, self).__init__(file_name_pattern, title=title)
         self.keep_html = keep_html
         self.editable = editable
-        self.trim_at = trim_at
+        self.max_rows = max_rows
 
     def get_pattern(self):
         return "<div class='txt2html'>" \
@@ -57,11 +57,11 @@ class TxtToHtml(ToHtml):
     def to_html(self, file_name):
         filepath = join(self.experiment_folder, file_name)
         with io.open(filepath, encoding="utf8") as f:
-            lines = list(islice(f, self.trim_at + 1))
-            trimmed = len(lines) > self.trim_at
+            lines = list(islice(f, self.max_rows + 1))
+            trimmed = len(lines) > self.max_rows
             if trimmed:
-                lines = lines[:self.trim_at]
-            trim_msg = '<i>(file trimmed at {} lines)</i>'.format(self.trim_at) if trimmed else ''
+                lines = lines[:self.max_rows]
+            trim_msg = '<i>(file trimmed at {} lines)</i>'.format(self.max_rows) if trimmed else ''
             raw_content = ''.join(lines)
 
         content = raw_content
