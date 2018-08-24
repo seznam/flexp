@@ -34,7 +34,7 @@ class TxtToHtml(ToHtml):
         :param title:
         :param editable:
         :param keep_html:
-        :param trim_at: Show max. of trim_at lines. (0 to disable trimming)
+        :param max_rows: Show max. of max_rows lines. (0 to disable trimming)
         """
         super(TxtToHtml, self).__init__(file_name_pattern, title=title)
         self.keep_html = keep_html
