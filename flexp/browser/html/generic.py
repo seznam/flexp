@@ -10,6 +10,7 @@ import re
 import sys
 import html as html_module
 from datetime import datetime
+from itertools import islice
 from os import path
 from os.path import join, split
 
@@ -26,10 +27,19 @@ py_version = sys.version_info[0]
 class TxtToHtml(ToHtml):
     """Print file content"""
 
-    def __init__(self, file_name_pattern=".*\.txt", title="Text files", editable=True, keep_html=False):
+    def __init__(self, file_name_pattern=".*\.txt", title="Text files", editable=True, keep_html=False, max_rows=100):
+        """
+
+        :param file_name_pattern:
+        :param title:
+        :param editable:
+        :param keep_html:
+        :param max_rows: Show max. of max_rows lines. (0 to disable trimming)
+        """
         super(TxtToHtml, self).__init__(file_name_pattern, title=title)
         self.keep_html = keep_html
         self.editable = editable
+        self.max_rows = max_rows
 
     def get_pattern(self):
         return "<div class='txt2html'>" \
@@ -41,12 +51,18 @@ class TxtToHtml(ToHtml):
                "</div>" \
                "</div>" \
                "<p>{content}</p>" \
+               "{trim_msg}" \
                "</div>"
 
     def to_html(self, file_name):
         filepath = join(self.experiment_folder, file_name)
         with io.open(filepath, encoding="utf8") as f:
-            raw_content = f.read().strip()
+            lines = list(islice(f, self.max_rows + 1))
+            trimmed = len(lines) > self.max_rows
+            if trimmed:
+                lines = lines[:self.max_rows]
+            trim_msg = '<i>(file trimmed at {} lines)</i>'.format(self.max_rows) if trimmed else ''
+            raw_content = ''.join(lines)
 
         content = raw_content
         if not self.keep_html:
@@ -56,7 +72,7 @@ class TxtToHtml(ToHtml):
         raw_content = raw_content.replace("\n", "\\n").replace('"', '\\"').replace("'", "\\'")
         raw_content = html_module.escape(raw_content)
 
-        class_editable = "" if self.editable else "hide"
+        class_editable = "" if self.editable and not trimmed else "hide"
 
         href = join("file/", self.experiment_folder, file_name)
         path_to_file = join(self.experiment_path, file_name)
@@ -68,7 +84,8 @@ class TxtToHtml(ToHtml):
             file_link=link,
             content_strip=raw_content,
             experiment_path=self.experiment_path,
-            class_editable=class_editable
+            class_editable=class_editable,
+            trim_msg=trim_msg,
             )
 
 
