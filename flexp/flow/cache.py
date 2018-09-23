@@ -166,6 +166,8 @@ class PickleCache(Chain, PickleMixin):
         if debug_level == 2:
             print("\t"*level+"level: {}, items: {}".format(level, items))
         for attribute, value in items:
+            # TODO checkpoints
+            # TODO check for checkpoints
             try:
                 if debug_level == 2:
                     print("\t" * level + "level: {}, attribute: {}".format(level, attribute))
