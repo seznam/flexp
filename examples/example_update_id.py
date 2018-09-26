@@ -5,6 +5,7 @@ from flexp.flow.cache import PickleCache
 from flexp.flow.caching_chain import CachingChain
 from flexp import flexp
 
+
 class PrintIdModule:
 
     def process(self, data):
@@ -26,7 +27,7 @@ class TestModule:
         pass
 
 
-class FlowData():
+class FlowData:
 
     def __init__(self):
         self.id = "/adsasd/asdasd/asdad/asd"
@@ -43,9 +44,6 @@ class FlowData():
     def __getitem__(self, key):
         return getattr(self, key)
 
-# class TestUpdateId(unittest.TestCase):
-#     """Test the hash of cache and black list parameter"""
-
 
 def main():
     flexp.setup("./experiments", "tf-idf", with_date=True)
@@ -54,17 +52,18 @@ def main():
 
     my_chain = CachingChain([
         PrintIdModule(),
-        PickleCache("cached_pkl", "id", [TestModule(12, 14, 18)]),
+        PickleCache("cached_pkl", "id", [TestModule(12, 14, 18)]),  # id updated by PickleChain hash
         PrintIdModule(),
-        PickleCache("cached_pkl", "id", [TestModule(12, 16, 18)]),
+        PickleCache("cached_pkl", "id", [TestModule(12, 16, 18)]),  # id updated by PickleChain hash
         PrintIdModule(),
-        TestModule(12, 16, 20),
+        TestModule(12, 16, 20),  # id updated
         PrintIdModule(),
         PrintIdModule(),
 
     ], update_data_id='id')
 
     my_chain.process(data)
+
 
 if __name__ == "__main__":
     main()

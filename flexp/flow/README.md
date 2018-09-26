@@ -128,3 +128,42 @@ Solution for this is to store only the name of the database and open it in the `
     cached_chain.process({'id': file_name})
     cached_chain.close()
 ```
+
+
+If you have several PickleCache modules in a sequence then you can
+use CachingChain.
+
+- if update_data_id is True then it updates data key after each module
+that has `UpdateDataId` class attribute (see TestModule in example).
+
+- CachingChaing look for last PickleCache module that already has cache, skip previous modules
+
+```python
+
+class TestModule:
+
+    UpdateDataId = "id"
+
+    def __init__(self, attr1):
+        self.attr1 = attr1
+
+    def process(self, data):
+        pass
+
+class EmptyModule:
+
+    def __init__(self, attr1, attr2):
+        self.attr1 = attr1
+        self.attr2 = attr2
+
+    def process(self, data):
+        pass
+
+my_chain = CachingChain([
+    # PickleCache ALWAYS change data key
+    PickleCache("cached_pkl", "id", [TestModule(12, 14, 18)]),  # key update
+    PickleCache("cached_pkl", "id", [TestModule(12, 10, 18)]),  # key update
+    EmptyModule(12, 12, 18),  # no key update
+    TestModule(12, 12, 18),  # key update (UpdateDataId is in TestModule)
+    ], update_data_id='id')
+```

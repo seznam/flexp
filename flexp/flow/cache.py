@@ -149,6 +149,10 @@ class PickleCache(Chain, ObjectDumper):
         # TODO write step method or get rid of step altogether, as Inspector is not much used
         pass
 
+    def get_cache_file_from_id(self, data_id):
+        key = hashlib.sha256(self.pickle(data_id)).hexdigest()
+        return self.directory + "/" + key + self.chain_info['chain_hash']
+
     def get_cache_file(self, data):
         key = hashlib.sha256(self.pickle(data[self.data_key])).hexdigest()
         chain_hash = self.chain_info['chain_hash']
@@ -163,6 +167,15 @@ class PickleCache(Chain, ObjectDumper):
         log.debug("Cache: {}".format(file))
         return os.path.exists(file)
 
+    @staticmethod
+    def hash_dump_string(dump_string):
+        """
+        Takes unicode string and create sha256 hash
+        :param dump_string:
+        :return string:
+        """
+        return hashlib.sha256(six.binary_type().join([dump_string])).hexdigest()
+
     def _get_chain_hash(self, chain):
         """Create a unique hash for each chain configuration.
 
@@ -170,8 +183,8 @@ class PickleCache(Chain, ObjectDumper):
         :param chain: list of modules
         :return: string
         """
-        chain_string = [self._object_dump_to_string(chain, self.max_recursion_level)]
-        return hashlib.sha256(six.binary_type().join(chain_string)).hexdigest()
+        chain_string = self._object_dump_to_string(chain, self.max_recursion_level)
+        return self.hash_dump_string(chain_string)
 
     def _get_object_mtime(self, obj):
         """Extract mtime from object's source file.

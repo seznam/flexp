@@ -3,14 +3,9 @@ from __future__ import print_function
 from __future__ import absolute_import
 from __future__ import division
 
-import collections
 import hashlib
-import pickle
+import os
 import time
-import types
-from copy import copy
-
-import six
 
 from flexp.flow import Chain
 from flexp.flow.cache import PickleCache, ObjectDumper
@@ -20,19 +15,13 @@ from flexp.utils import get_logger
 log = get_logger(__name__)
 
 
-def hash_dump_string(dump_string):
-    """
-    Takes unicode string and create sha256 hash
-    :param dump_string:
-    :return:
-    """
-    return hashlib.sha256(six.binary_type().join([dump_string])).hexdigest()
-
-
 class CachingChain(Chain, ObjectDumper):
     """Chains of modules run by `process` function.
-    Update data id after each module with parameter UPDATE_ID = True
+    Update data id after each module with parameter UpdateAttrName = 'UpdateDataId'.
+    Look for last prepared PickleCache and skip previous modules
     """
+
+    UpdateAttrName = 'UpdateDataId'
 
     def __init__(self, chain=None, check=False, name=None, ignore_first_module_requirements=True, update_data_id='id',
                  max_recursion_level=10):
@@ -64,10 +53,8 @@ class CachingChain(Chain, ObjectDumper):
             # assume that PickleCache contains only modules that have significant impact on data
             self.id_hashes.append(module.chain_info['chain_hash'])
         else:
-            # todo use PickleCache  Function
-            # todo which will control UpdateDataId
-            if hasattr(module, 'UpdateDataId'):
-                self.id_hashes.append(hash_dump_string(self._object_dump_to_string([module], self.max_recursion_level)))
+            if hasattr(module, self.UpdateAttrName):
+                self.id_hashes.append(PickleCache.hash_dump_string(self._object_dump_to_string([module], self.max_recursion_level)))
             else:
                 self.id_hashes.append("")
 
@@ -78,10 +65,8 @@ class CachingChain(Chain, ObjectDumper):
         :param new_hash:
         :return:
         """
-
-        # print("id before", getattr(data, self.update_data_id))
-        data_id = getattr(data, self.update_data_id)
-        if hasattr(data, 'id'):
+        if hasattr(data, self.update_data_id):
+            data_id = getattr(data, self.update_data_id)
             parts = data_id.split("|")
             if len(parts) > 1:
                 prefix = "".join(parts[:-1])
@@ -91,11 +76,34 @@ class CachingChain(Chain, ObjectDumper):
                 old_hash = ""
             updated_hash = hashlib.sha256((old_hash+new_hash).encode()).hexdigest()
             setattr(data, self.update_data_id, prefix + "|" + updated_hash)
-            # print("".join(data.id.split("|")[:-1]), updated_hash)
         else:
             setattr(data, self.update_data_id, new_hash)
-        # print("id after", getattr(data, self.update_data_id))
         log.debug("Data.id updated: data.id")
+
+    def get_updated_data_ids(self, data):
+        """
+        Create list of data ids of length = len(self.modules) + 1 , i-th id is input for i-th module
+        :param data:
+        :return list[str]: list of data ids
+        """
+        data_id = getattr(data, self.update_data_id)
+        updated_ids = [data_id]
+        for i, module in enumerate(self.modules):
+            if self.id_hashes[i]:
+
+                parts = data_id.split("|")
+                if len(parts) > 1:
+                    prefix = "".join(parts[:-1])
+                    old_hash = parts[-1]
+                else:
+                    prefix = data_id
+                    old_hash = ""
+                updated_hash = hashlib.sha256((old_hash + self.id_hashes[i]).encode()).hexdigest()
+                updated_ids.append(prefix + "|" + updated_hash)
+            else:
+                updated_ids.append(updated_ids[-1])
+            data_id = updated_ids[-1]
+        return updated_ids
 
     def process(self, data):
         """Run all modules.
@@ -103,7 +111,17 @@ class CachingChain(Chain, ObjectDumper):
         :param dict data: the inplace processed data - one data per call
         :return: dict:
         """
-        for i in range(len(self.modules)):
+        start = 0
+        updated_ids = self.get_updated_data_ids(data)
+        for i, module in list(enumerate(self.modules))[::-1]:
+            if isinstance(module, PickleCache):
+                # key = hashlib.sha256(self.pickle(updated_ids[i])).hexdigest()
+                file = module.get_cache_file_from_id(updated_ids[i])
+                if os.path.exists(file):
+                    log.debug("We skip first {} modules because cache: {} exists".format(i, file))
+                    start = i
+                    break
+        for i in range(start, len(self.modules)):
             try:
                 if hasattr(self.modules[i], "process"):
                     log.debug("{}.process()".format(self.names[i]))
@@ -112,11 +130,9 @@ class CachingChain(Chain, ObjectDumper):
                     log.debug("{}()".format(self.names[i]))
                     process_func = self.modules[i]
                 start = time.clock()
+                # update data ket from list before running module
+                setattr(data, self.update_data_id,  updated_ids[i])
                 process_func(data)
-                if self.id_hashes[i]:
-                    # after each module process
-                    self.update_data_id_func(data, self.id_hashes[i])
-                    # log.debug(data.id)
                 end = time.clock()
                 self.times[i] += (end - start)
             except StopIteration:
@@ -124,4 +140,3 @@ class CachingChain(Chain, ObjectDumper):
                     self.names[i]))
                 raise
         self.iterations += 1
-
