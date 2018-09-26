@@ -67,7 +67,53 @@ else:
     PickleMixin = PickleMixinP2
 
 
-class PickleCache(Chain, PickleMixin):
+class ObjectDumper(PickleMixin):
+    """Functionality of this class is used in PickleCache and CachingChain"""
+
+    def _object_dump_to_string(self, obj, max_recursion_level, level=0):
+        """Consolidate object with its attributes and their values into ony byte-string.
+
+        :param obj: Object instance
+        :return: unicode String image of the pickled object
+        """
+        if level > max_recursion_level:
+            return ""
+        dump_string = obj.__class__.__name__.encode("ASCII")
+        if hasattr(obj, '__name__'):  # to distinguish functions from each other
+            dump_string += obj.__name__.encode("ASCII")
+
+        # Get insides of the objects, based on the type
+        if isinstance(obj, str):
+            return dump_string + obj
+        else:
+            try:
+                items = sorted(vars(obj).items())
+            except:
+                try:
+                    items = sorted(obj.items())
+                except:
+                    items = [(str(i), o) for i, o in enumerate(obj)]
+
+        for attribute, value in items:
+            try:
+                try:
+                    dump_string += self._object_dump_to_string(attribute, max_recursion_level, level + 1)
+                except:
+                    dump_string += self.pickle(attribute)
+            except pickle.PicklingError:  # attribute could not be dumped
+                pass
+
+            try:
+                try:
+                    dump_string += self._object_dump_to_string(value, max_recursion_level, level + 1)
+                except:
+                    dump_string += self.pickle(value)
+            except pickle.PicklingError:  # attribute could not be dumped
+                pass
+        return dump_string
+
+
+class PickleCache(Chain, ObjectDumper):
     """
     Caches the data processed by the given chain. Cached data are stored in the given directory as pickle files.
     File names are the hash od data.id and chain hash.
@@ -117,49 +163,6 @@ class PickleCache(Chain, PickleMixin):
         log.debug("Cache: {}".format(file))
         return os.path.exists(file)
 
-    def _object_dump_to_string(self, obj, level=0):
-        """Consolidate object with its attributes and their values into ony byte-string.
-
-        :param obj: Object instance
-        :return: unicode String image of the pickled object
-        """
-        if level > self.max_recursion_level:
-            return ""
-        dump_string = obj.__class__.__name__.encode("ASCII")
-        if hasattr(obj, '__name__'):  # to distinguish functions from each other
-            dump_string += obj.__name__.encode("ASCII")
-
-        # Get insides of the objects, based on the type
-        items = []
-        if isinstance(obj, str):
-            return dump_string + obj
-        else:
-            try:
-                items = sorted(vars(obj).items())
-            except:
-                try:
-                    items = sorted(obj.items())
-                except:
-                    items = [(str(i), o) for i, o in enumerate(obj)]
-
-        for attribute, value in items:
-            try:
-                try:
-                    dump_string += self._object_dump_to_string(attribute, level + 1)
-                except:
-                    dump_string += self.pickle(attribute)
-            except pickle.PicklingError:  # attribute could not be dumped
-                pass
-
-            try:
-                try:
-                    dump_string += self._object_dump_to_string(value, level + 1)
-                except:
-                    dump_string += self.pickle(value)
-            except pickle.PicklingError:  # attribute could not be dumped
-                pass
-        return dump_string
-
     def _get_chain_hash(self, chain):
         """Create a unique hash for each chain configuration.
 
@@ -167,7 +170,7 @@ class PickleCache(Chain, PickleMixin):
         :param chain: list of modules
         :return: string
         """
-        chain_string = [self._object_dump_to_string(chain)]
+        chain_string = [self._object_dump_to_string(chain, self.max_recursion_level)]
         return hashlib.sha256(six.binary_type().join(chain_string)).hexdigest()
 
     def _get_object_mtime(self, obj):
