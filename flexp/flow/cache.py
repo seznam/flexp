@@ -3,6 +3,8 @@ from __future__ import print_function
 from __future__ import absolute_import
 from __future__ import division
 
+from copy import deepcopy, copy
+
 import six
 import collections
 import time
@@ -74,12 +76,13 @@ class PickleCache(Chain, PickleMixin):
     """
 
     def __init__(self, directory, data_key="id", chain=None, force=False,
-                 max_recursion_level=10, dir_rights=0o777):
+                 max_recursion_level=10, dir_rights=0o777, debug_level=0):
         super(PickleCache, self).__init__(chain)
         self.directory = directory
         self.force = force
         self.data_key = data_key
         self.max_recursion_level = max_recursion_level
+        self.debug_level = debug_level
 
         self.chain_info = {'chain_len': 0, 'chain_hash': None,
                            'chain_mtime': None,
@@ -117,47 +120,81 @@ class PickleCache(Chain, PickleMixin):
         log.debug("Cache: {}".format(file))
         return os.path.exists(file)
 
-    def _object_dump_to_string(self, obj, level=0):
+    def _object_dump_to_string(self, obj, level=0, debug_level=0):
         """Consolidate object with its attributes and their values into ony byte-string.
+        If object has PickleCacheBlackList class attribute then attributes listed there are not taken into account.
 
         :param obj: Object instance
-        :return: unicode String image of the pickled object
+        :param int level: recursion level
+        :param int debug_level: debug_level 0 (silence), 1 or 2 (full)
+         :return: unicode String image of the pickled object
         """
         if level > self.max_recursion_level:
             return ""
+
         dump_string = obj.__class__.__name__.encode("ASCII")
+        if debug_level == 2:
+            print("\t"*level+"level: {}, class name {}".format(level, dump_string))
+
         if hasattr(obj, '__name__'):  # to distinguish functions from each other
             dump_string += obj.__name__.encode("ASCII")
+            if debug_level == 2:
+                print("\t"*level+"level: {}, function name {}".format(level, obj.__name__.encode("ASCII")))
 
         # Get insides of the objects, based on the type
-        items = []
+
         if isinstance(obj, str):
+            if debug_level == 2:
+                print("\t"*level+"level: {}, obj is str: {}".format(level, obj))
             return dump_string + obj
         else:
             try:
-                items = sorted(vars(obj).items())
+                items = copy(vars(obj))
+                if hasattr(obj, 'PickleCacheBlackList'):
+                    if debug_level == 2:
+                        print("\t"*level+"obj has blacklist", obj.PickleCacheBlackList)
+                    for v in obj.PickleCacheBlackList:
+                        del items[v]
+
+                items = sorted(items.items())
             except:
                 try:
                     items = sorted(obj.items())
                 except:
                     items = [(str(i), o) for i, o in enumerate(obj)]
 
+        if debug_level == 2:
+            print("\t"*level+"level: {}, items: {}".format(level, items))
         for attribute, value in items:
+            # TODO checkpoints
+            # TODO check for checkpoints
             try:
+                if debug_level == 2:
+                    print("\t" * level + "level: {}, attribute: {}".format(level, attribute))
                 try:
-                    dump_string += self._object_dump_to_string(attribute, level + 1)
+                    add_string = self._object_dump_to_string(attribute, level + 1, debug_level)
                 except:
-                    dump_string += self.pickle(attribute)
+                    add_string = self.pickle(attribute)
+                dump_string += add_string
             except pickle.PicklingError:  # attribute could not be dumped
                 pass
 
             try:
+                if debug_level == 2:
+                    print("\t"*level+"level: {}, value: {}".format(level, value))
                 try:
-                    dump_string += self._object_dump_to_string(value, level + 1)
+                    add_string = self._object_dump_to_string(value, level + 1, debug_level)
                 except:
-                    dump_string += self.pickle(value)
+                    add_string = self.pickle(value)
+                dump_string += add_string
             except pickle.PicklingError:  # attribute could not be dumped
                 pass
+
+        if debug_level > 0 and level == 0:
+            print("dump_string is {}\n"
+                  "Compare this with another cache hash with command\n"
+                  " $ cmp -bl <(echo -n abcda) <(echo -n aqcde)".format(hashlib.sha256(six.binary_type().join([dump_string])).hexdigest()))
+
         return dump_string
 
     def _get_chain_hash(self, chain):
@@ -167,7 +204,7 @@ class PickleCache(Chain, PickleMixin):
         :param chain: list of modules
         :return: string
         """
-        chain_string = [self._object_dump_to_string(chain)]
+        chain_string = [self._object_dump_to_string(chain, debug_level=self.debug_level)]
         return hashlib.sha256(six.binary_type().join(chain_string)).hexdigest()
 
     def _get_object_mtime(self, obj):
