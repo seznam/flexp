@@ -160,10 +160,11 @@ class EmptyModule:
         pass
 
 my_chain = CachingChain([
-    # PickleCache ALWAYS change data key
     PickleCache("cached_pkl", "id", [TestModule(12, 14, 18)]),  # key update
     PickleCache("cached_pkl", "id", [TestModule(12, 10, 18)]),  # key update
     EmptyModule(12, 12, 18),  # no key update
+    # PickleCache ALWAYS change data key
+    PickleCache("cached_pkl", "id", [EmptyModule(1, 0)]), # key update
     TestModule(12, 12, 18),  # key update (UpdateDataId is in TestModule)
     ], update_data_id='id')
 ```
