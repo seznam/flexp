@@ -328,7 +328,11 @@ class PickleCache(Chain, ObjectDumper):
             cache, stop = self._process(data, {})
             cache = cache[self.chain_info['chain_hash']]
             with open(file, 'wb') as f:
-                pickle.dump(cache, f)
+                try:
+                    pickle.dump(cache, f, protocol=4)
+                except:
+                    pickle.dump(cache, f)
+
             # Try to set some more flexible access rights
             try:
                 os.chmod(file, RWRWRW)
