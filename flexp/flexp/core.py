@@ -3,6 +3,7 @@ from __future__ import print_function
 from __future__ import absolute_import
 from __future__ import division
 
+import shutil
 from datetime import datetime
 from shutil import copyfile, copystat
 import io
@@ -222,8 +223,34 @@ class ExperimentHandler(object):
         self._metadata[key] = value
 
 
+def clean_experiment_dir(override_dir):
+    """
+    Cleans experiment folder.
+    :param bool override_dir: If true, clean the folder, if false, check it's empty or doesn't exists
+    :return:
+    """
+    experiment_dir = get_file_path("")
+    # Check experiment_dir is empty or doesn't exists
+    if not override_dir:
+        if not os.path.exists(experiment_dir) or not os.listdir(experiment_dir):
+            return
+        else:
+            raise FileExistsError("Directory {} exists and is not empty! Use override_dir=True to clean the directory.")
+    else:
+        # Dir doesn't exists, so everything's fine.
+        if not os.path.exists(experiment_dir):
+            return
+        # Remove all files in the directory
+        for the_file in os.listdir(experiment_dir):
+            file_path = os.path.join(experiment_dir, the_file)
+            if os.path.isfile(file_path):
+                os.unlink(file_path)
+            elif os.path.isdir(file_path):
+                shutil.rmtree(file_path)
+
+
 def setup(root_dir, exp_name=None, with_date=False, backup=True, default_rights=RWXRWS, loglevel=logging.DEBUG,
-          log_filename='log.txt', disable_stderr=False):
+          log_filename='log.txt', disable_stderr=False, override_dir=False):
     """Set up Experiment handler.
 
     :param root_dir: Path to experiments root directory. New directories will be created in the folder.
@@ -234,11 +261,17 @@ def setup(root_dir, exp_name=None, with_date=False, backup=True, default_rights=
     :param loglevel: Loglevel, DEBUG by default, can be overriden by FLEXP_LOGLEVEL environment variable.
     :param log_filename: Filename of log in experiment dir. 'log.txt' by default. If None, logging to file is disabled.
     :param disable_stderr: Enable/disable logging on stderr. False by default.
+    :param bool override_dir: If True, remove all contents of the directory.
+                              If False and there is any file in the directory, raise an exception.
     """
     if "experiment" in _eh:
         raise Exception("flexp.setup() called twice")
     _eh["experiment"] = ExperimentHandler(default_rights=default_rights)
     _eh["experiment"].setup(root_dir, exp_name, with_date=with_date)
+
+    # Clean the directory or check it's empty
+    clean_experiment_dir(override_dir)
+
     if backup:
         _eh["experiment"].backup_files([sys.argv[0]])
     atexit.register(_eh["experiment"]._write_metadata)

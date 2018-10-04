@@ -1,0 +1,33 @@
+# coding: utf-8
+
+import atexit
+import io
+import os
+from os import path
+import shutil
+
+import pytest
+
+from flexp import flexp
+
+
+def test_override():
+    # We have to reset the _eh to make flexp stop complaining about calling setup twice.
+    flexp.core._eh = {}
+    flexp.setup("tests/data/", "exp01", False, override_dir=False)
+
+    expdir = path.join("tests/data/", "exp01")
+    assert path.isdir(expdir), "flexp didn't create experiment dir with override_dir=False"
+
+    # Test that it fails to create the directory, there should be logging file already.
+    with pytest.raises(FileExistsError):
+        flexp.core._eh = {}
+        flexp.setup("tests/data/", "exp01", False, override_dir=False)
+
+    # This should be ok
+    flexp.core._eh = {}
+    flexp.setup("tests/data/", "exp01", False, override_dir=True)
+
+    # Remove the experiment dir
+    shutil.rmtree(expdir)
+
