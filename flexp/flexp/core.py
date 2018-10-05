@@ -235,7 +235,11 @@ def clean_experiment_dir(override_dir):
         if not os.path.exists(experiment_dir) or not os.listdir(experiment_dir):
             return
         else:
-            raise FileExistsError("Directory {} exists and is not empty! Use override_dir=True to clean the directory.")
+            raise FileExistsError(
+                "Directory '{}' already exists and is not empty! "
+                "Use override_dir=True to clean the directory."
+                    .format(name())
+            )
     else:
         # Dir doesn't exists, so everything's fine.
         if not os.path.exists(experiment_dir):
