@@ -129,6 +129,21 @@ Solution for this is to store only the name of the database and open it in the `
     cached_chain.close()
 ```
 
+PickleCache is too sensiive and takes into account all variables. You can change this behaviour by adding
+`PickleCacheBlackList` class attribute to your module:
+
+```python
+class TestModule:
+    # PickleCacheBlackList is a list with attribute names
+    PickleCacheBlackList = ['attr3']
+
+    def __init__(self, attr1, attr2, attr3):
+        self.attr1 = attr1
+        self.attr2 = attr2
+        self.attr3 = attr3
+```
+
+### CachingChain
 
 If you have several PickleCache modules in a sequence then you can
 use CachingChain.
@@ -168,3 +183,4 @@ my_chain = CachingChain([
     TestModule(12, 12, 18),  # key update (UpdateDataId is in TestModule)
     ], update_data_id='id')
 ```
+

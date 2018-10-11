@@ -3,6 +3,8 @@ from __future__ import print_function
 from __future__ import absolute_import
 from __future__ import division
 
+from copy import deepcopy, copy
+
 import six
 import collections
 import time
@@ -120,12 +122,13 @@ class PickleCache(Chain, ObjectDumper):
     """
 
     def __init__(self, directory, data_key="id", chain=None, force=False,
-                 max_recursion_level=10, dir_rights=0o777):
+                 max_recursion_level=10, dir_rights=0o777, debug_level=0):
         super(PickleCache, self).__init__(chain)
         self.directory = directory
         self.force = force
         self.data_key = data_key
         self.max_recursion_level = max_recursion_level
+        self.debug_level = debug_level
 
         self.chain_info = {'chain_len': 0, 'chain_hash': None,
                            'chain_mtime': None,
@@ -175,7 +178,7 @@ class PickleCache(Chain, ObjectDumper):
         :return string:
         """
         return hashlib.sha256(six.binary_type().join([dump_string])).hexdigest()
-
+      
     def _get_chain_hash(self, chain):
         """Create a unique hash for each chain configuration.
 
