@@ -23,6 +23,8 @@ class CachingChain(Chain, ObjectDumper):
 
     UpdateAttrName = 'UpdateDataId'
 
+    SEPARATOR = "|"
+
     def __init__(self, chain=None, check=False, name=None, ignore_first_module_requirements=True, update_data_id='id',
                  max_recursion_level=10):
         """Set up modules.
@@ -58,28 +60,6 @@ class CachingChain(Chain, ObjectDumper):
             else:
                 self.id_hashes.append("")
 
-    def update_data_id_func(self, data, new_hash):
-        """
-        Data id is `some_data_id_hash|modules_hash`
-        :param data:
-        :param new_hash:
-        :return:
-        """
-        if hasattr(data, self.update_data_id):
-            data_id = getattr(data, self.update_data_id)
-            parts = data_id.split("|")
-            if len(parts) > 1:
-                prefix = "".join(parts[:-1])
-                old_hash = parts[-1]
-            else:
-                prefix = data_id
-                old_hash = ""
-            updated_hash = hashlib.sha256((old_hash+new_hash).encode()).hexdigest()
-            setattr(data, self.update_data_id, prefix + "|" + updated_hash)
-        else:
-            setattr(data, self.update_data_id, new_hash)
-        log.debug("Data.id updated: data.id")
-
     def get_updated_data_ids(self, data):
         """
         Create list of data ids of length = len(self.modules) + 1 , i-th id is input for i-th module
@@ -91,7 +71,7 @@ class CachingChain(Chain, ObjectDumper):
         for i, module in enumerate(self.modules):
             if self.id_hashes[i]:
 
-                parts = data_id.split("|")
+                parts = data_id.split(self.SEPARATOR)
                 if len(parts) > 1:
                     prefix = "".join(parts[:-1])
                     old_hash = parts[-1]
@@ -99,7 +79,7 @@ class CachingChain(Chain, ObjectDumper):
                     prefix = data_id
                     old_hash = ""
                 updated_hash = hashlib.sha256((old_hash + self.id_hashes[i]).encode()).hexdigest()
-                updated_ids.append(prefix + "|" + updated_hash)
+                updated_ids.append(prefix + self.SEPARATOR + updated_hash)
             else:
                 updated_ids.append(updated_ids[-1])
             data_id = updated_ids[-1]
