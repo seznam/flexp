@@ -72,46 +72,74 @@ else:
 class ObjectDumper(PickleMixin):
     """Functionality of this class is used in PickleCache and CachingChain"""
 
-    def _object_dump_to_string(self, obj, max_recursion_level, level=0):
+    def _object_dump_to_string(self, obj, max_recursion_level, level=0, debug_level=0):
         """Consolidate object with its attributes and their values into ony byte-string.
-
+        If object has PickleCacheBlackList class attribute then attributes listed there are not taken into account.
         :param obj: Object instance
+        :param int level: recursion level
+        :param int debug_level: debug_level 0 (silence), 1 or 2 (full)
         :return: unicode String image of the pickled object
         """
         if level > max_recursion_level:
-            return ""
+            return "".encode("ASCII")
         dump_string = obj.__class__.__name__.encode("ASCII")
+        if debug_level == 2:
+            print("\t"*level+"level: {}, class name {}".format(level, dump_string))
         if hasattr(obj, '__name__'):  # to distinguish functions from each other
             dump_string += obj.__name__.encode("ASCII")
+            if debug_level == 2:
+                print("\t"*level+"level: {}, function name {}".format(level, obj.__name__.encode("ASCII")))
 
         # Get insides of the objects, based on the type
         if isinstance(obj, str):
+            if debug_level == 2:
+                print("\t"*level+"level: {}, obj is str: {}".format(level, obj))
             return dump_string + obj
         else:
             try:
-                items = sorted(vars(obj).items())
+                items = copy(vars(obj))
+                if hasattr(obj, 'PickleCacheBlackList'):
+                    if debug_level == 2:
+                        print("\t" * level + "obj has blacklist", obj.PickleCacheBlackList)
+                    for v in obj.PickleCacheBlackList:
+                        del items[v]
+                items = sorted(items.items())
             except:
                 try:
                     items = sorted(obj.items())
                 except:
                     items = [(str(i), o) for i, o in enumerate(obj)]
 
+        if debug_level == 2:
+            print("\t"*level+"level: {}, items: {}".format(level, items))
         for attribute, value in items:
             try:
+                if debug_level == 2:
+                    print("\t" * level + "level: {}, attribute: {}".format(level, attribute))
                 try:
-                    dump_string += self._object_dump_to_string(attribute, max_recursion_level, level + 1)
+                    add_string = self._object_dump_to_string(attribute, max_recursion_level, level + 1, debug_level)
                 except:
-                    dump_string += self.pickle(attribute)
+                    add_string = self.pickle(attribute)
+                dump_string += add_string
             except pickle.PicklingError:  # attribute could not be dumped
                 pass
 
             try:
+                if debug_level == 2:
+                    print("\t" * level + "level: {}, value: {}".format(level, value))
                 try:
-                    dump_string += self._object_dump_to_string(value, max_recursion_level, level + 1)
+                    add_string = self._object_dump_to_string(value, max_recursion_level, level + 1, debug_level)
                 except:
-                    dump_string += self.pickle(value)
+                    add_string = self.pickle(value)
+                dump_string += add_string
             except pickle.PicklingError:  # attribute could not be dumped
                 pass
+
+        if debug_level > 0 and level == 0:
+            print("dump_string is {}\n"
+                  "Compare this with another cache hash with command\n"
+                  " $ cmp -bl <(echo -n abcda) <(echo -n aqcde)".format(hashlib.sha256(six.binary_type().join([dump_string])).hexdigest()))
+
         return dump_string
 
 
@@ -186,7 +214,7 @@ class PickleCache(Chain, ObjectDumper):
         :param chain: list of modules
         :return: string
         """
-        chain_string = self._object_dump_to_string(chain, self.max_recursion_level)
+        chain_string = self._object_dump_to_string(chain, self.max_recursion_level, debug_level=self.debug_level)
         return self.hash_dump_string(chain_string)
 
     def _get_object_mtime(self, obj):
