@@ -129,7 +129,6 @@ Solution for this is to store only the name of the database and open it in the `
     cached_chain.close()
 ```
 
-
 PickleCache is too sensiive and takes into account all variables. You can change this behaviour by adding
 `PickleCacheBlackList` class attribute to your module:
 
@@ -142,5 +141,46 @@ class TestModule:
         self.attr1 = attr1
         self.attr2 = attr2
         self.attr3 = attr3
+```
+
+### CachingChain
+
+If you have several PickleCache modules in a sequence then you can
+use CachingChain.
+
+- if update_data_id is True then it updates data key after each module
+that has `UpdateDataId` class attribute (see TestModule in example).
+
+- CachingChaing look for last PickleCache module that already has cache, skip previous modules
+
+```python
+
+class TestModule:
+
+    UpdateDataId = "id"
+
+    def __init__(self, attr1):
+        self.attr1 = attr1
+
+    def process(self, data):
+        pass
+
+class EmptyModule:
+
+    def __init__(self, attr1, attr2):
+        self.attr1 = attr1
+        self.attr2 = attr2
+
+    def process(self, data):
+        pass
+
+my_chain = CachingChain([
+    PickleCache("cached_pkl", "id", [TestModule(12, 14, 18)]),  # key update
+    PickleCache("cached_pkl", "id", [TestModule(12, 10, 18)]),  # key update
+    EmptyModule(12, 12, 18),  # no key update
+    # PickleCache ALWAYS change data key
+    PickleCache("cached_pkl", "id", [EmptyModule(1, 0)]), # key update
+    TestModule(12, 12, 18),  # key update (UpdateDataId is in TestModule)
+    ], update_data_id='id')
 ```
 
