@@ -9,5 +9,6 @@ python:
   - "3.7-dev"  # 3.7 development branch
 install:
   - pip install -r requirements.txt
+  - pip install nose testfixtures
 script:
   - pytest
