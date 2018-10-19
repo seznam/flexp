@@ -1,5 +1,6 @@
 # flexp - flexible experiments and data-flow programming framework
 
+[![Build Status](https://travis-ci.com/seznam/flexp.svg?branch=master)](https://travis-ci.com/seznam/flexp)
 
 flexp is a framework created by researchers for the researchers. 
 
