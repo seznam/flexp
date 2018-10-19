@@ -30,6 +30,7 @@ def test_working():
     if not hasattr(atexit, "unregister") and path.exists(
             path.join(expdir, "flexp_info.txt")):
         os.unlink(path.join(expdir, "flexp_info.txt"))
+    flexp.disable()
     shutil.rmtree(expdir)
 
 
