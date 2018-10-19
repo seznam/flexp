@@ -5,8 +5,6 @@ import six
 
 log_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
-# file_handler_global = []
-
 
 def loglevel_from_string(level):
     """
@@ -60,4 +58,3 @@ def _close_file_handlers():
     root_logger = logging.getLogger()
     for file_handler in root_logger.handlers:
         file_handler.close()
-
