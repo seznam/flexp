@@ -364,4 +364,5 @@ def set_metadata(key, value):
 def disable():
     """Surpress all output and returns /dev/null as path to all files."""
     _eh["experiment"].disabled = True
+    _setup_logging(logging.FATAL, None, True)
 
