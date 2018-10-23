@@ -87,7 +87,7 @@ class ToHtml(object):
         for file_name in self.get_files():
             try:
                 file_content = self.to_html(file_name)
-            except:
+            except Exception as e:
                 file_content = message(str(e))
 
             content.append(file_content)
