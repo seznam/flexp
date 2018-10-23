@@ -86,11 +86,11 @@ class ToHtml(object):
         content = []
         for file_name in self.get_files():
             try:
-                module_content = self.to_html(file_name)
+                file_content = self.to_html(file_name)
             except:
-                module_content = "<span class='w3-tag w3-green'>Error processing module {}</span>".format(self.__class__.__name__)
+                file_content = message(str(e))
 
-            content.append(module_content)
+            content.append(file_content)
 
         return u"\n".join(content)
 
