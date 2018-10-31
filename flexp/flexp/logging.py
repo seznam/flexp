@@ -3,7 +3,6 @@ import warnings
 import os
 import six
 
-
 log_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 
@@ -39,6 +38,7 @@ def get_loglevel_from_env(default_level):
 
 
 def _setup_logging(level=logging.DEBUG, filename='log.txt', disable_stderr=False):
+    _close_file_handlers()
     level = loglevel_from_string(level)
     root_logger = logging.getLogger()
     root_logger.setLevel(level)
@@ -52,3 +52,9 @@ def _setup_logging(level=logging.DEBUG, filename='log.txt', disable_stderr=False
         root_logger.addHandler(stream_handler)
 
     warnings.simplefilter("once")
+
+
+def _close_file_handlers():
+    root_logger = logging.getLogger()
+    for file_handler in root_logger.handlers:
+        file_handler.close()
