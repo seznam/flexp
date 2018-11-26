@@ -58,3 +58,4 @@ def _close_file_handlers():
     root_logger = logging.getLogger()
     for file_handler in root_logger.handlers:
         file_handler.close()
+    root_logger.handlers = []

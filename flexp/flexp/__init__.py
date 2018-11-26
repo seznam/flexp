@@ -10,4 +10,5 @@ from flexp.flexp.core import (
     get_file,
     set_metadata,
     disable,
+    close,
 )
