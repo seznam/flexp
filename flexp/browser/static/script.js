@@ -25,8 +25,11 @@ $(function(){
     )
 
     $('table.tr-link tr').click(function(){
-        window.location = $(this).attr('data-href');
-        return false;
+        href = $(this).attr('data-href');
+        if (href){
+            window.location = href
+            return false;
+        }
     });
 
     $( "#dialog-confirm" ).dialog({

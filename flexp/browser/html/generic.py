@@ -18,7 +18,6 @@ from flexp.browser.html.to_html import ToHtml
 from flexp.browser.utils import get_link_to_file
 from flexp.utils import get_logger
 
-
 log = get_logger(__name__)
 
 py_version = sys.version_info[0]
@@ -66,7 +65,7 @@ class TxtToHtml(ToHtml):
 
         content = raw_content
         if not self.keep_html:
-            content = raw_content.replace("<", "&lt;").replace(">", "&gt;").replace("\n", "<br/>\n")\
+            content = raw_content.replace("<", "&lt;").replace(">", "&gt;").replace("\n", "<br/>\n") \
                 .replace("  ", "&nbsp;&nbsp;")
 
         raw_content = raw_content.replace("\n", "\\n").replace('"', '\\"').replace("'", "\\'")
@@ -86,7 +85,7 @@ class TxtToHtml(ToHtml):
             experiment_path=self.experiment_path,
             class_editable=class_editable,
             trim_msg=trim_msg,
-            )
+        )
 
 
 class FlexpInfoToHtml(TxtToHtml):
@@ -118,7 +117,7 @@ class DescriptionToHtml(ToHtml):
         filepath = join(basedir, DescriptionToHtml.DESCRIPTION_FILE)
 
         if not path.exists(filepath):
-            return "{} not found".format(DescriptionToHtml.DESCRIPTION_FILE)
+            return "<span class='info'>{} not found</span>".format(DescriptionToHtml.DESCRIPTION_FILE)
 
         with open(filepath) as f:
             s = f.read().replace("<", "&lt;").replace(">", "&gt;")
@@ -137,7 +136,8 @@ class TimeToHtml(ToHtml):
     """Show the duration of an experiment from log.txt."""
 
     def __init__(self, title="Time"):
-        self.time_re = re.compile(r'(\d{2,4})[\-\.]?(\d{1,2})[\-\.]?(\d{1,2})[ T\-_]?(\d{1,2})[\:\.](\d{1,2})[\:\.](\d{1,2})')
+        self.time_re = re.compile(
+            r'(\d{2,4})[\-\.]?(\d{1,2})[\-\.]?(\d{1,2})[ T\-_]?(\d{1,2})[\:\.](\d{1,2})[\:\.](\d{1,2})')
         super(TimeToHtml, self).__init__("log.txt", title)
 
     def to_html(self, file_name):
@@ -204,8 +204,12 @@ class CsvToHtml(ToHtml):
     def show_file(self, file_path_exp):
         return file_path_exp[-3:] in ("csv", "tsv")
 
-    def csv_to_html(self, csv_file):
-        html = ""
+    def iterate_csv(self, csv_file):
+        """
+        Iterates over csv file. Respects `self.max_rows`. In that case `early_termination` flag is on
+        :param str csv_file: Path to file
+        :return: Yields tuples (early_termination, csv_row) types tuple(bool, list[Any])
+        """
         # Open the CSV file for reading
         mode = "rb" if py_version == 2 else "r"
         with io.open(csv_file, mode) as csvfile:
@@ -220,45 +224,48 @@ class CsvToHtml(ToHtml):
             else:
                 reader = csv.reader(csvfile, delimiter=self.delimiter, quotechar=self.quotechar)
 
-            # initialize rownum variable
-            rownum = 0
+            yield from reader
 
-            # write <table> tag
-            html += "<p><table class='w3-table w3-bordered w3-striped w3-border w3-hoverable w3-card-2 tablesorter'>\n"
-            folder, filename = split(csv_file)
-            href = join("file/", self.experiment_folder, filename)
-            html += "<caption><a href='%s'>%s</a></caption>" % (href, filename)
+    def csv_to_html(self, csv_file):
+        html = ""
 
-            # generate table contents
-            for row in reader:  # Read a single row from the CSV file
-                if py_version == 2:
-                    row = [item.decode("utf8") for item in row]
-                # write header row. assumes first row in csv contains header
-                if rownum == 0:
-                    html += "<thead>"
-                    html += "<tr class='w3-green'>"  # write <tr> tag
-                    for column in row:
-                        html += '<th>' + column + '</th>'
-                    html += '</tr>\n'
-                    html += "</thead>"
+        # write <table> tag
+        html += "<p><table class='w3-table w3-bordered w3-striped w3-border w3-hoverable w3-card-2 tablesorter'>\n"
+        folder, filename = split(csv_file)
+        href = join("file/", self.experiment_folder, filename)
+        html += "<caption><a href='%s'>%s</a></caption>" % (href, filename)
 
-                # write all other rows
-                else:
-                    html += '<tr>'
-                    for column in row:
-                        html += '<td>' + column + '</td>'
-                    html += '</tr>\n'
+        reader = self.iterate_csv(csv_file)
 
-                # increment row count
-                rownum += 1
-                if self.max_rows is not None and rownum >= self.max_rows:
-                    html += "<tr><td colspan='{}'><center><i>following rows hidden</i></center></td></tr>\n"\
-                        .format(len(row))
-                    break
+        # write header row. assumes first row in csv contains header
+        header = next(reader)
+        html += "<thead>"
+        html += "<tr class='w3-green'>"  # write <tr> tag
+        for column in header:
+            html += '<th>' + column + '</th>'
+        html += '</tr>\n'
+        html += "</thead>"
 
-            # write </table> tag
-            html += '</table></p>\n'
-        return html
+        # generate table contents
+        for rownum, row in enumerate(reader):  # Read a single row from the CSV file
+            if py_version == 2:
+                row = [item.decode("utf8") for item in row]
+
+            html += '<tr>'
+            for column in row:
+                html += '<td>' + column + '</td>'
+            html += '</tr>\n'
+
+            early_termination = self.max_rows is not None and rownum >= self.max_rows
+            if early_termination:
+                html += "<tr><td colspan='{}'><center><i>following rows hidden</i></center></td></tr>".format(
+                    len(row)
+                )
+                break
+
+        html += '</table></p>\n'
+
+        return html 
 
     def to_html(self, file_name):
         pass

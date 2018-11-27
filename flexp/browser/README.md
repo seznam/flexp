@@ -44,8 +44,28 @@ cd example/
 python browse_module.py --port 7777
 ```
 
+### 4. Create own metric parser
+For easy experiment comparision, metric values are shown in experiment list,
+if experiment folders contains `metrics.csv`.
 
-### 4. Use own display configuration for each experiment
+![Flexp-browser experiments preview](/browser_experiments.png)
+
+This file is parsed by default following way: 
+ - first row (header) is skipped
+ - first column is used as metric names
+ - second column is used as metric values
+
+If your `metrics_filename` or it's structure is different, you can use own parser
+by providing `metrics_filename` and/or `get_metrics_fcn`. 
+ Check [browse_metrics.py](/examples/experiments/browse_metrics.py) for an example.
+
+```bash
+cd example/
+python browse_metrics.py --port 7777
+```
+
+
+### 5. Use own display configuration for each experiment
 You can create specific display configuration for each experiment. You just need to create `custom_flexp_chain.py`
 _in experiment dir_ in the following format:
 
