@@ -80,6 +80,7 @@ def natural_sort(seq):
     def _alphanum(x):
         return [int(x) if x.isdigit() else x.lower()
                 for c in re.split('([0-9]+)', x)]
+
     return sorted(seq, key=_alphanum)
 
 
@@ -188,3 +189,50 @@ def get_logger(name):
     logger = logging.getLogger(name)
     logger.addHandler(logging.NullHandler())
     return logger
+
+
+class PartialFormatter(string.Formatter):
+    """
+    Fills formating fields without provided values with `missing` value.
+    Code from: https://stackoverflow.com/a/20250018/6579599
+    """
+
+    def __init__(self, missing='~', bad_fmt='!'):
+        self.missing, self.bad_fmt = missing, bad_fmt
+
+    def get_field(self, field_name, args, kwargs):
+        # Handle a key not found
+        try:
+            val = super(PartialFormatter, self).get_field(field_name, args, kwargs)
+            # Python 3, 'super().get_field(field_name, args, kwargs)' works
+        except (KeyError, AttributeError):
+            val = None, field_name
+        return val
+
+    def format_field(self, value, spec):
+        # handle an invalid format
+        if value == None: return self.missing
+        try:
+            return super(PartialFormatter, self).format_field(value, spec)
+        except ValueError:
+            if self.bad_fmt is not None:
+                return self.bad_fmt
+            else:
+                raise
+
+
+def exception_safe(fcn, return_on_exception=None):
+    """
+    Function wrapper that handles exception by printing in log
+    :param function fcn: Function to wrap
+    :param Any return_on_exception: What should be returned if exception occures
+    :return Any: If no exception returns the same as `fcn`, otherwise returns `return_on_exception`
+    """
+    def wrapper(*args, **kwargs):
+        try:
+            return fcn(*args, **kwargs)
+        except Exception as e:
+            logging.warning("Exception in {}: {}".format(fcn.__name__, e))
+            return return_on_exception
+
+    return wrapper

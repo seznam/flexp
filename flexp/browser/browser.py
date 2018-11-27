@@ -11,28 +11,26 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import unicode_literals
 
+import os
 import os.path as path
+import re
 import shutil
 import sys
 import traceback
 
 import click
-
-import os
-
 import tornado.ioloop
 import tornado.web
 
-from flexp.browser.html.generic import DescriptionToHtml, FilesToHtml, ImagesToHtml, FlexpInfoToHtml, CsvToHtml, TxtToHtml, StringToHtml
+from flexp.browser.html.generic import DescriptionToHtml, FilesToHtml, ImagesToHtml, FlexpInfoToHtml, CsvToHtml, \
+    TxtToHtml, StringToHtml
 from flexp.browser.html.to_html import ToHtml
-from flexp.flow import Chain
-from flexp.utils import import_by_filename
 from flexp.browser.utils import setup_logging
+from flexp.flow import Chain
 from flexp.utils import get_logger
-
+from flexp.utils import import_by_filename, PartialFormatter, exception_safe
 
 log = get_logger(__name__)
-
 
 default_html = [
     FlexpInfoToHtml(),
@@ -45,11 +43,45 @@ default_html = [
 default_html_chain = Chain(default_html)
 
 
-def run(port=7777, chain=list()):
-    """Run the whole browser with optional own `port` number and `chain` of ToHtml modules."""
+def default_get_metrics(file_path):
+    """
+    Parse csv file, skip first row, then uses
+    0th column as a metric names and 1st column as metric values
+    :param str file_path: Path to a file with metrics
+    :return dict[str, Any]:
+    """
+    reader = CsvToHtml().iterate_csv(file_path)
+    next(reader)  # Skip header
+
+    # filter out early_termination
+    # and take Oth col as metric_name and 1st col as metric_val
+    metrics = {row[0]: row[1] for row in reader}
+
+    return metrics
+
+
+get_metrics = default_get_metrics
+metrics_file = "metrics.csv"
+
+
+def run(port=7777, chain=list(), get_metrics_fcn=default_get_metrics, metrics_filename="metrics.csv"):
+    """
+    Run the whole browser with optional own `port` number and `chain` of ToHtml modules.
+    Allows reading main metrics from all experiments and show them in experiment list.
+    :param int port: Port on which to start flexp browser
+    :param list[ToHtml]|ToHtml chain: List of ToHtml instances that defines what to print
+    :param (Callable[str]) -> dict[str, Any] get_metrics_fcn: Function that takes filename of a file with
+    metrics and return dict[metric_name, value].
+    :param str metrics_filename: Filename in each experiment dir which contains metrics values.
+    """
 
     MainHandler.experiments_folder = os.getcwd()
     AjaxHandler.experiments_folder = os.getcwd()
+
+    global get_metrics
+    get_metrics = exception_safe(get_metrics_fcn, return_on_exception={})
+    global metrics_file
+    metrics_file = metrics_filename
 
     # append new modules to the default chain
     if isinstance(chain, ToHtml):
@@ -265,20 +297,70 @@ def html_table(base_dir):
     :param base_dir: parent folder in which to look for an experiment folders
     :return: {string}
     """
-    return "\n".join(("""
-        <table class="tr-link signals-rc-file w3-table w3-bordered w3-striped w3-border w3-hoverable">
+    table_tpl = """
+        <table class="tr-link signals-rc-file w3-table w3-bordered w3-striped w3-border w3-hoverable tablesorter">
             <thead>
-                <tr class="w3-green"><th>Folder</th><th>Description</th></tr>
+                <tr class="w3-green">
+                    <th>Folder</th>
+                    <th>Description</th>
+                    {metrics_names}
+                </tr>
             </thead>
-            <tbody>""",
-                      "\n".join("<tr data-href='?experiment={exp_dir}'>"
-                                "<td>{exp_dir}</td>"
-                                "<td>{description}</td>"
-                                "</tr>".format(exp_dir=exp_dir,
-                                               description=DescriptionToHtml.get_description_html(exp_path))
-                                for exp_dir, exp_path, date_changed in list_experiments(base_dir)),
-                      """ </tbody>
-                      </table>"""))
+            <tbody>
+                {rows}
+            </tbody>
+        </table>
+    """
+
+    row_tpl = """
+        <tr data-href='?experiment={exp_dir}'>
+            <td>{exp_dir}</td>
+            <td>{description}</td>
+            {metrics_names}
+        </tr>
+    """
+
+    # Get all metrics
+    metrics_names = set()
+    for exp_dir, exp_path, date_changed in list_experiments(base_dir):
+        metrics_file_path = os.path.join(exp_path, metrics_file)
+        exp_metric_names = get_metrics(metrics_file_path).keys()
+        metrics_names |= set(exp_metric_names)
+    metrics_names = sorted(metrics_names)
+
+    # Update table_template
+    metric_names_tpl = ["<th>{}</th>".format(m) for m in metrics_names]
+    table_tpl = table_tpl.format(metrics_names="".join(metric_names_tpl), rows="{rows}")
+
+    # Update row_template
+    metrics_names = [re.sub(r'\W+', '', m) for m in metrics_names]  # remove nonalpha (caused problems with **metrics)
+    metric_names_tpl = ["<td>{{{}}}</td>".format(m) for m in metrics_names]
+    row_tpl = row_tpl.format(metrics_names="".join(metric_names_tpl), exp_dir="{exp_dir}", description="{description}")
+
+    # Iterate over experiments and get html row for each
+    formatter = PartialFormatter()
+    rows = []
+    for exp_dir, exp_path, date_changed in list_experiments(base_dir):
+
+        # Load metrics
+        metrics_file_path = os.path.join(exp_path, metrics_file)
+        metrics = get_metrics(metrics_file_path)
+
+        # remove nonalpha (caused problems with **metrics)
+        metrics = {re.sub(r'\W+', '', k): v for k, v in metrics.items()}
+
+        row = formatter.format(
+            row_tpl,
+            exp_dir=exp_dir,
+            description=DescriptionToHtml.get_description_html(exp_path),
+            **metrics
+        )
+        rows.append(row)
+
+    # Fill rows in the table template
+    table = table_tpl.format(rows="\n".join(rows))
+
+    return table
 
 
 def html_navigation(base_dir, selected_experiment=None):
