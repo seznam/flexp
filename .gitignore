@@ -4,6 +4,7 @@ examples/experiments/*
 !examples/experiments/exp[1-2]
 !examples/experiments/browse.py
 !examples/experiments/browse_module.py
+!examples/experiments/browse_metrics.py
 
 # Created by https://www.gitignore.io/api/python
 
