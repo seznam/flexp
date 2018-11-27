@@ -16,10 +16,8 @@ import atexit
 import zipfile
 import logging
 
-
-from flexp.flexp.logging import _setup_logging
+from flexp.flexp.logging import _setup_logging, _close_file_handlers
 from flexp.utils import get_logger
-
 
 log = get_logger(__name__)
 
@@ -112,7 +110,6 @@ class ExperimentHandler(object):
             fout.write(u"Command: python " + u" ".join(map(self._unicodize, sys.argv)) + u"\n")
 
             for k, v in self._metadata.items():
-
                 fout.write(u"{}: {}\n".format(self._unicodize(k), self._unicodize(v)))
 
         os.chmod(self.get_file_path(self.METADATA_FILE_PATH), self.default_rights)
@@ -205,7 +202,8 @@ class ExperimentHandler(object):
                 fout.write(u"#!/usr/bin/env python\n")
                 fout.write(u"# -*- coding: utf-8 -*-\n")
                 fout.write(u"import subprocess\n")
-                fout.write(u"print(subprocess.check_output(['"+u"','".join(map(self._unicodize, sys.argv)) + u"']))\n\n")
+                fout.write(
+                    u"print(subprocess.check_output(['" + u"','".join(map(self._unicodize, sys.argv)) + u"']))\n\n")
             zf.write("__main__.py")
             try:
                 os.remove("__main__.py")
@@ -269,7 +267,7 @@ def setup(root_dir, exp_name=None, with_date=False, backup=True, default_rights=
                               If False and there is any file in the directory, raise an exception.
     """
     if "experiment" in _eh:
-        raise Exception("flexp.setup() called twice")
+        raise Exception("flexp.setup() called twice. Use flexp.close() before calling again.")
     _eh["experiment"] = ExperimentHandler(default_rights=default_rights)
     _eh["experiment"].setup(root_dir, exp_name, with_date=with_date)
 
@@ -330,7 +328,8 @@ def backup_sources(paths, output_name="sources.zip"):
 def get_static_file(folder, file_name):
     """Get path to a file inside some static folder (such as cache, data etc.)."""
     if folder not in _eh:
-        raise KeyError("No static \"{}\". Didn't you swap 'name' and 'path' during init \"static(name, path)\"?".format(folder))
+        raise KeyError(
+            "No static \"{}\". Didn't you swap 'name' and 'path' during init \"static(name, path)\"?".format(folder))
     return _eh[folder].get_file_path(file_name)
 
 
@@ -366,3 +365,12 @@ def disable():
     _eh["experiment"].disabled = True
     _setup_logging(logging.FATAL, None, True)
 
+
+def close():
+    """
+    Writes experiment metadata and stops logging.
+    Allows to call setup() twice.
+    """
+    _eh["experiment"]._write_metadata()
+    _close_file_handlers()
+    del _eh["experiment"]
