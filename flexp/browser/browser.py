@@ -32,14 +32,14 @@ from flexp.utils import import_by_filename, PartialFormatter, exception_safe
 
 log = get_logger(__name__)
 
-default_html_chain = [
+default_html_chain = (
     FlexpInfoToHtml(),
     CsvToHtml(file_name_pattern="metrics.csv", title="Main metrics"),
     ImagesToHtml(),
     CsvToHtml(file_name_pattern="^(?!.*(metrics.csv)).*"),
     TxtToHtml(),
     FilesToHtml(),
-]
+)
 
 
 def default_get_metrics(file_path):
