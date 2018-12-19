@@ -29,7 +29,7 @@ def get_metrics(file_path):
 @click.command()
 @click.option('--port', '-p', default=7777, help='Port')
 def main(port):
-    browser.run(port=port, get_metrics_fcn=get_metrics, metrics_filename="other_metrics.csv")
+    browser.run(port=port, get_metrics_fcn=get_metrics, metrics_file="other_metrics.csv")
 
 
 if __name__ == "__main__":

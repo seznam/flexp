@@ -32,15 +32,14 @@ from flexp.utils import import_by_filename, PartialFormatter, exception_safe
 
 log = get_logger(__name__)
 
-default_html = [
+default_html_chain = [
     FlexpInfoToHtml(),
+    CsvToHtml(file_name_pattern="metrics.csv", title="Main metrics"),
     ImagesToHtml(),
-    CsvToHtml(),
+    CsvToHtml(file_name_pattern="^(?!.*(metrics.csv)).*"),
     TxtToHtml(),
     FilesToHtml(),
 ]
-
-default_html_chain = Chain(default_html)
 
 
 def default_get_metrics(file_path):
@@ -60,11 +59,7 @@ def default_get_metrics(file_path):
     return metrics
 
 
-get_metrics = default_get_metrics
-metrics_file = "metrics.csv"
-
-
-def run(port=7777, chain=list(), get_metrics_fcn=default_get_metrics, metrics_filename="metrics.csv"):
+def run(port=7777, chain=default_html_chain, get_metrics_fcn=default_get_metrics, metrics_file="metrics.csv"):
     """
     Run the whole browser with optional own `port` number and `chain` of ToHtml modules.
     Allows reading main metrics from all experiments and show them in experiment list.
@@ -72,38 +67,28 @@ def run(port=7777, chain=list(), get_metrics_fcn=default_get_metrics, metrics_fi
     :param list[ToHtml]|ToHtml chain: List of ToHtml instances that defines what to print
     :param (Callable[str]) -> dict[str, Any] get_metrics_fcn: Function that takes filename of a file with
     metrics and return dict[metric_name, value].
-    :param str metrics_filename: Filename in each experiment dir which contains metrics values.
+    :param str metrics_file: Filename in each experiment dir which contains metrics values.
     """
-
-    MainHandler.experiments_folder = os.getcwd()
-    AjaxHandler.experiments_folder = os.getcwd()
-
-    global get_metrics
-    get_metrics = exception_safe(get_metrics_fcn, return_on_exception={})
-    global metrics_file
-    metrics_file = metrics_filename
 
     # append new modules to the default chain
     if isinstance(chain, ToHtml):
         chain = [chain]
 
-    if len(chain) > 0:
-        # put own modules at the beginning
-        html_chain = Chain(chain)
-        # for module in default_html:
-        #     html_chain.add(module)
-    else:
-        html_chain = default_html_chain
-
-    MainHandler.html_chain = html_chain
+    main_handler_params = {
+        "get_metrics_fcn": exception_safe(get_metrics_fcn, return_on_exception={}),
+        "metrics_file": metrics_file,
+        "experiments_folder": os.getcwd(),
+        "html_chain": Chain(chain),
+    }
 
     here_path = os.path.dirname(os.path.abspath(__file__))
+
     app = tornado.web.Application([
-        (r"/", MainHandler),
+        (r"/", MainHandler, main_handler_params),
         (r'/(favicon.ico)', tornado.web.StaticFileHandler, {"path": path.join(here_path, "static/")}),
-        (r"/file/(.*)", NoCacheStaticHandler, {'path': MainHandler.experiments_folder}),
+        (r"/file/(.*)", NoCacheStaticHandler, {'path': os.getcwd()}),
         (r"/static/(.*)", tornado.web.StaticFileHandler, {'path': path.join(here_path, "static")}),
-        (r"/ajax", AjaxHandler)],
+        (r"/ajax", AjaxHandler, {"experiments_folder": os.getcwd()})],
         {"debug": True}
     )
 
@@ -114,10 +99,6 @@ def run(port=7777, chain=list(), get_metrics_fcn=default_get_metrics, metrics_fi
 
 class MainHandler(tornado.web.RequestHandler):
     """Browser's logic is all here."""
-
-    experiments_folder = None
-
-    html_chain = None
 
     _template = """
         <!DOCTYPE HTML>
@@ -192,6 +173,12 @@ class MainHandler(tornado.web.RequestHandler):
         </html>
         """
 
+    def initialize(self, get_metrics_fcn, metrics_file, experiments_folder, html_chain):
+        self.get_metrics_fcn = get_metrics_fcn
+        self.metrics_file = metrics_file
+        self.experiments_folder = experiments_folder
+        self.html_chain = html_chain
+
     def get(self):
         experiment_folder = self.get_argument("experiment", default="")
         experiment_path = path.join(self.experiments_folder, experiment_folder)
@@ -245,7 +232,7 @@ class MainHandler(tornado.web.RequestHandler):
 
         else:
             title_html = "<h1>Experiments</h1>"
-            content_html = html_table(self.experiments_folder)
+            content_html = html_table(self.experiments_folder, self.get_metrics_fcn, self.metrics_file)
 
         html = self._template.format(
             title=title_html,
@@ -260,10 +247,12 @@ class AjaxHandler(tornado.web.RequestHandler):
     """
     Handler controls behaviour when delete folder or rename folder or change file content icons are used.
     """
-    experiments_folder = None
 
     def __init__(self, application, request, **kwargs):
         super(AjaxHandler, self).__init__(application, request, **kwargs)
+
+    def initialize(self, experiments_folder):
+        self.experiments_folder = experiments_folder
 
     def post(self):
         action = self.get_argument('action')
@@ -291,10 +280,12 @@ class AjaxHandler(tornado.web.RequestHandler):
                 file.write(new_content)
 
 
-def html_table(base_dir):
+def html_table(base_dir, get_metrics_fcn, metrics_file):
     """Construct a html table of all experiment folders with description.
-
     :param base_dir: parent folder in which to look for an experiment folders
+    :param (Callable[str]) -> dict[str, Any] get_metrics_fcn: Function that takes filename of a file with
+    metrics and return dict[metric_name, value].
+    :param str metrics_file: Filename in each experiment dir which contains metrics values.
     :return: {string}
     """
     table_tpl = """
@@ -324,7 +315,7 @@ def html_table(base_dir):
     metrics_names = set()
     for exp_dir, exp_path, date_changed in list_experiments(base_dir):
         metrics_file_path = os.path.join(exp_path, metrics_file)
-        exp_metric_names = get_metrics(metrics_file_path).keys()
+        exp_metric_names = get_metrics_fcn(metrics_file_path).keys()
         metrics_names |= set(exp_metric_names)
     metrics_names = sorted(metrics_names)
 
@@ -341,10 +332,9 @@ def html_table(base_dir):
     formatter = PartialFormatter()
     rows = []
     for exp_dir, exp_path, date_changed in list_experiments(base_dir):
-
         # Load metrics
         metrics_file_path = os.path.join(exp_path, metrics_file)
-        metrics = get_metrics(metrics_file_path)
+        metrics = get_metrics_fcn(metrics_file_path)
 
         # remove nonalpha (caused problems with **metrics)
         metrics = {re.sub(r'\W+', '', k): v for k, v in metrics.items()}
