@@ -50,10 +50,12 @@ if experiment folders contains `metrics.csv`.
 
 ![Flexp-browser experiments preview](/browser_experiments.png)
 
-This file is parsed by default following way: 
- - first row (header) is skipped
- - first column is used as metric names
- - second column is used as metric values
+This file is expected to be in following format: 
+```text
+method;metric 1;metric X
+method1;0.35;0.27
+method2;0.30;0.24
+```
 
 If your `metrics_filename` or it's structure is different, you can use own parser
 by providing `metrics_filename` and/or `get_metrics_fcn`. 

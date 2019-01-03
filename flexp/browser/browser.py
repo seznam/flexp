@@ -11,6 +11,7 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import unicode_literals
 
+import logging
 import os
 import os.path as path
 import re
@@ -44,19 +45,29 @@ default_html_chain = (
 
 def default_get_metrics(file_path):
     """
-    Parse csv file, skip first row, then uses
-    0th column as a metric names and 1st column as metric values
+    Example metrics.csv:
+    method,metric 1, metric 2
+    method_1,0.1,0.2
+    method_2,0.2,0.3
+
+    Returns:
+    [
+        {"method", "method_1", "metric 1": 0.1, "metric 2": 0.2},
+        {"method", "method_2", "metric 1": 0.2, "metric 2": 0.3},
+    ]
+
     :param str file_path: Path to a file with metrics
-    :return dict[str, Any]:
+    :return list[dict[str, Any]]:
     """
     reader = CsvToHtml().iterate_csv(file_path)
-    next(reader)  # Skip header
+    metric_names = next(reader)
 
-    # filter out early_termination
-    # and take Oth col as metric_name and 1st col as metric_val
-    metrics = {row[0]: row[1] for row in reader}
+    metrics_list = []
+    for metric_values in reader:
+        metrics_dict = dict(zip(metric_names, metric_values))
+        metrics_list.append(metrics_dict)
 
-    return metrics
+    return metrics_list
 
 
 def run(port=7777, chain=default_html_chain, get_metrics_fcn=default_get_metrics, metrics_file="metrics.csv"):
@@ -65,7 +76,7 @@ def run(port=7777, chain=default_html_chain, get_metrics_fcn=default_get_metrics
     Allows reading main metrics from all experiments and show them in experiment list.
     :param int port: Port on which to start flexp browser
     :param list[ToHtml]|ToHtml chain: List of ToHtml instances that defines what to print
-    :param (Callable[str]) -> dict[str, Any] get_metrics_fcn: Function that takes filename of a file with
+    :param (Callable[str]) -> list[dict[str, Any]] get_metrics_fcn: Function that takes filename of a file with
     metrics and return dict[metric_name, value].
     :param str metrics_file: Filename in each experiment dir which contains metrics values.
     """
@@ -74,8 +85,12 @@ def run(port=7777, chain=default_html_chain, get_metrics_fcn=default_get_metrics
     if isinstance(chain, ToHtml):
         chain = [chain]
 
+    # handle wrong return type and expetions in get_metrics_fcn
+    get_metrics_fcn = return_type_list_of_dicts(get_metrics_fcn, return_on_fail=[{}])
+    get_metrics_fcn = exception_safe(get_metrics_fcn, return_on_exception=[{}])
+
     main_handler_params = {
-        "get_metrics_fcn": exception_safe(get_metrics_fcn, return_on_exception={}),
+        "get_metrics_fcn": get_metrics_fcn,
         "metrics_file": metrics_file,
         "experiments_folder": os.getcwd(),
         "html_chain": Chain(chain),
@@ -265,7 +280,6 @@ class AjaxHandler(tornado.web.RequestHandler):
 
         if action == "rename_folder":
             new_name = self.get_argument('new_name')
-            # print(action, value, new_name)
             folder = os.path.join(self.experiments_folder, value)
             new_folder = os.path.join(self.experiments_folder, new_name)
             if os.path.exists(folder) and not os.path.exists(new_folder) and "/" not in value and "/" not in new_name:
@@ -283,7 +297,7 @@ class AjaxHandler(tornado.web.RequestHandler):
 def html_table(base_dir, get_metrics_fcn, metrics_file):
     """Construct a html table of all experiment folders with description.
     :param base_dir: parent folder in which to look for an experiment folders
-    :param (Callable[str]) -> dict[str, Any] get_metrics_fcn: Function that takes filename of a file with
+    :param (Callable[str]) -> list[dict[str, Any]] get_metrics_fcn: Function that takes filename of a file with
     metrics and return dict[metric_name, value].
     :param str metrics_file: Filename in each experiment dir which contains metrics values.
     :return: {string}
@@ -311,13 +325,8 @@ def html_table(base_dir, get_metrics_fcn, metrics_file):
         </tr>
     """
 
-    # Get all metrics
-    metrics_names = set()
-    for exp_dir, exp_path, date_changed in list_experiments(base_dir):
-        metrics_file_path = os.path.join(exp_path, metrics_file)
-        exp_metric_names = get_metrics_fcn(metrics_file_path).keys()
-        metrics_names |= set(exp_metric_names)
-    metrics_names = sorted(metrics_names)
+    # Get all metrics names
+    metrics_names = get_metrics_names(base_dir, get_metrics_fcn, metrics_file)
 
     # Update table_template
     metric_names_tpl = ["<th>{}</th>".format(m) for m in metrics_names]
@@ -334,23 +343,35 @@ def html_table(base_dir, get_metrics_fcn, metrics_file):
     for exp_dir, exp_path, date_changed in list_experiments(base_dir):
         # Load metrics
         metrics_file_path = os.path.join(exp_path, metrics_file)
-        metrics = get_metrics_fcn(metrics_file_path)
+        metrics_rows = get_metrics_fcn(metrics_file_path)
 
-        # remove nonalpha (caused problems with **metrics)
-        metrics = {re.sub(r'\W+', '', k): v for k, v in metrics.items()}
+        for metrics in metrics_rows:
+            # remove nonalpha (caused problems with **metrics)
+            metrics = {re.sub(r'\W+', '', k): v for k, v in metrics.items()}
 
-        row = formatter.format(
-            row_tpl,
-            exp_dir=exp_dir,
-            description=DescriptionToHtml.get_description_html(exp_path),
-            **metrics
-        )
-        rows.append(row)
+            row = formatter.format(
+                row_tpl,
+                exp_dir=exp_dir,
+                description=DescriptionToHtml.get_description_html(exp_path),
+                **metrics
+            )
+            rows.append(row)
 
     # Fill rows in the table template
     table = table_tpl.format(rows="\n".join(rows))
 
     return table
+
+
+def get_metrics_names(base_dir, get_metrics_fcn, metrics_file):
+    metrics_names = set()
+    for exp_dir, exp_path, date_changed in list_experiments(base_dir):
+        metrics_file_path = os.path.join(exp_path, metrics_file)
+        for metrics in get_metrics_fcn(metrics_file_path):
+            exp_metric_names = metrics.keys()
+            metrics_names |= set(exp_metric_names)
+    metrics_names = sorted(metrics_names)
+    return metrics_names
 
 
 def html_navigation(base_dir, selected_experiment=None):
@@ -416,9 +437,6 @@ def html_anchor_navigation(base_dir, experiment_dir, modules):
     ))
 
 
-# , '{exp_dir}'
-
-
 def list_experiments(base_dir):
     """Return list of tuples(experiment_directory, experiment_absolute_path).
 
@@ -429,6 +447,22 @@ def list_experiments(base_dir):
                    for exp_dir in os.listdir(base_dir)
                    if path.isdir(path.join(base_dir, exp_dir))],
                   key=lambda x: x[2], reverse=True)
+
+
+def return_type_list_of_dicts(fcn, return_on_fail=None):
+    def wrapper(*args, **kwargs):
+        try:
+            out = fcn(*args, **kwargs)
+            assert isinstance(out, list), type(out)
+            assert len(out) > 0, len(out)
+            for item in out:
+                assert isinstance(item, dict), type(item)
+            return out
+        except Exception as e:
+            logging.warning("Exception in {}: {}".format(fcn.__name__, e))
+            return return_on_fail
+
+    return wrapper
 
 
 class NoCacheStaticHandler(tornado.web.StaticFileHandler):
