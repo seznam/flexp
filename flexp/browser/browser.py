@@ -11,67 +11,99 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import unicode_literals
 
+import logging
+import os
 import os.path as path
+import re
 import shutil
 import sys
 import traceback
 
 import click
-
-import os
-
 import tornado.ioloop
 import tornado.web
 
-from flexp.browser.html.generic import DescriptionToHtml, FilesToHtml, ImagesToHtml, FlexpInfoToHtml, CsvToHtml, TxtToHtml, StringToHtml
+from flexp.browser.html.generic import DescriptionToHtml, FilesToHtml, ImagesToHtml, FlexpInfoToHtml, CsvToHtml, \
+    TxtToHtml, StringToHtml
 from flexp.browser.html.to_html import ToHtml
-from flexp.flow import Chain
-from flexp.utils import import_by_filename
 from flexp.browser.utils import setup_logging
+from flexp.flow import Chain
 from flexp.utils import get_logger
-
+from flexp.utils import import_by_filename, PartialFormatter, exception_safe
 
 log = get_logger(__name__)
 
-
-default_html = [
+default_html_chain = (
     FlexpInfoToHtml(),
+    CsvToHtml(file_name_pattern="metrics.csv", title="Main metrics"),
     ImagesToHtml(),
-    CsvToHtml(),
+    CsvToHtml(file_name_pattern="^(?!.*(metrics.csv)).*"),
     TxtToHtml(),
     FilesToHtml(),
-]
-
-default_html_chain = Chain(default_html)
+)
 
 
-def run(port=7777, chain=list()):
-    """Run the whole browser with optional own `port` number and `chain` of ToHtml modules."""
+def default_get_metrics(file_path):
+    """
+    Example metrics.csv:
+    method,metric 1, metric 2
+    method_1,0.1,0.2
+    method_2,0.2,0.3
 
-    MainHandler.experiments_folder = os.getcwd()
-    AjaxHandler.experiments_folder = os.getcwd()
+    Returns:
+    [
+        {"method", "method_1", "metric 1": 0.1, "metric 2": 0.2},
+        {"method", "method_2", "metric 1": 0.2, "metric 2": 0.3},
+    ]
+
+    :param str file_path: Path to a file with metrics
+    :return list[dict[str, Any]]:
+    """
+    reader = CsvToHtml().iterate_csv(file_path)
+    metric_names = next(reader)
+
+    metrics_list = []
+    for metric_values in reader:
+        metrics_dict = dict(zip(metric_names, metric_values))
+        metrics_list.append(metrics_dict)
+
+    return metrics_list
+
+
+def run(port=7777, chain=default_html_chain, get_metrics_fcn=default_get_metrics, metrics_file="metrics.csv"):
+    """
+    Run the whole browser with optional own `port` number and `chain` of ToHtml modules.
+    Allows reading main metrics from all experiments and show them in experiment list.
+    :param int port: Port on which to start flexp browser
+    :param list[ToHtml]|ToHtml chain: List of ToHtml instances that defines what to print
+    :param (Callable[str]) -> list[dict[str, Any]] get_metrics_fcn: Function that takes filename of a file with
+    metrics and return dict[metric_name, value].
+    :param str metrics_file: Filename in each experiment dir which contains metrics values.
+    """
 
     # append new modules to the default chain
     if isinstance(chain, ToHtml):
         chain = [chain]
 
-    if len(chain) > 0:
-        # put own modules at the beginning
-        html_chain = Chain(chain)
-        # for module in default_html:
-        #     html_chain.add(module)
-    else:
-        html_chain = default_html_chain
+    # handle wrong return type and expetions in get_metrics_fcn
+    get_metrics_fcn = return_type_list_of_dicts(get_metrics_fcn, return_on_fail=[{}])
+    get_metrics_fcn = exception_safe(get_metrics_fcn, return_on_exception=[{}])
 
-    MainHandler.html_chain = html_chain
+    main_handler_params = {
+        "get_metrics_fcn": get_metrics_fcn,
+        "metrics_file": metrics_file,
+        "experiments_folder": os.getcwd(),
+        "html_chain": Chain(chain),
+    }
 
     here_path = os.path.dirname(os.path.abspath(__file__))
+
     app = tornado.web.Application([
-        (r"/", MainHandler),
+        (r"/", MainHandler, main_handler_params),
         (r'/(favicon.ico)', tornado.web.StaticFileHandler, {"path": path.join(here_path, "static/")}),
-        (r"/file/(.*)", NoCacheStaticHandler, {'path': MainHandler.experiments_folder}),
+        (r"/file/(.*)", NoCacheStaticHandler, {'path': os.getcwd()}),
         (r"/static/(.*)", tornado.web.StaticFileHandler, {'path': path.join(here_path, "static")}),
-        (r"/ajax", AjaxHandler)],
+        (r"/ajax", AjaxHandler, {"experiments_folder": os.getcwd()})],
         {"debug": True}
     )
 
@@ -82,10 +114,6 @@ def run(port=7777, chain=list()):
 
 class MainHandler(tornado.web.RequestHandler):
     """Browser's logic is all here."""
-
-    experiments_folder = None
-
-    html_chain = None
 
     _template = """
         <!DOCTYPE HTML>
@@ -160,6 +188,12 @@ class MainHandler(tornado.web.RequestHandler):
         </html>
         """
 
+    def initialize(self, get_metrics_fcn, metrics_file, experiments_folder, html_chain):
+        self.get_metrics_fcn = get_metrics_fcn
+        self.metrics_file = metrics_file
+        self.experiments_folder = experiments_folder
+        self.html_chain = html_chain
+
     def get(self):
         experiment_folder = self.get_argument("experiment", default="")
         experiment_path = path.join(self.experiments_folder, experiment_folder)
@@ -213,7 +247,7 @@ class MainHandler(tornado.web.RequestHandler):
 
         else:
             title_html = "<h1>Experiments</h1>"
-            content_html = html_table(self.experiments_folder)
+            content_html = html_table(self.experiments_folder, self.get_metrics_fcn, self.metrics_file)
 
         html = self._template.format(
             title=title_html,
@@ -228,10 +262,12 @@ class AjaxHandler(tornado.web.RequestHandler):
     """
     Handler controls behaviour when delete folder or rename folder or change file content icons are used.
     """
-    experiments_folder = None
 
     def __init__(self, application, request, **kwargs):
         super(AjaxHandler, self).__init__(application, request, **kwargs)
+
+    def initialize(self, experiments_folder):
+        self.experiments_folder = experiments_folder
 
     def post(self):
         action = self.get_argument('action')
@@ -244,7 +280,6 @@ class AjaxHandler(tornado.web.RequestHandler):
 
         if action == "rename_folder":
             new_name = self.get_argument('new_name')
-            # print(action, value, new_name)
             folder = os.path.join(self.experiments_folder, value)
             new_folder = os.path.join(self.experiments_folder, new_name)
             if os.path.exists(folder) and not os.path.exists(new_folder) and "/" not in value and "/" not in new_name:
@@ -259,26 +294,84 @@ class AjaxHandler(tornado.web.RequestHandler):
                 file.write(new_content)
 
 
-def html_table(base_dir):
+def html_table(base_dir, get_metrics_fcn, metrics_file):
     """Construct a html table of all experiment folders with description.
-
     :param base_dir: parent folder in which to look for an experiment folders
+    :param (Callable[str]) -> list[dict[str, Any]] get_metrics_fcn: Function that takes filename of a file with
+    metrics and return dict[metric_name, value].
+    :param str metrics_file: Filename in each experiment dir which contains metrics values.
     :return: {string}
     """
-    return "\n".join(("""
-        <table class="tr-link signals-rc-file w3-table w3-bordered w3-striped w3-border w3-hoverable">
+    table_tpl = """
+        <table class="tr-link signals-rc-file w3-table w3-bordered w3-striped w3-border w3-hoverable tablesorter">
             <thead>
-                <tr class="w3-green"><th>Folder</th><th>Description</th></tr>
+                <tr class="w3-green">
+                    <th>Folder</th>
+                    <th>Description</th>
+                    {metrics_names}
+                </tr>
             </thead>
-            <tbody>""",
-                      "\n".join("<tr data-href='?experiment={exp_dir}'>"
-                                "<td>{exp_dir}</td>"
-                                "<td>{description}</td>"
-                                "</tr>".format(exp_dir=exp_dir,
-                                               description=DescriptionToHtml.get_description_html(exp_path))
-                                for exp_dir, exp_path, date_changed in list_experiments(base_dir)),
-                      """ </tbody>
-                      </table>"""))
+            <tbody>
+                {rows}
+            </tbody>
+        </table>
+    """
+
+    row_tpl = """
+        <tr data-href='?experiment={exp_dir}'>
+            <td>{exp_dir}</td>
+            <td>{description}</td>
+            {metrics_names}
+        </tr>
+    """
+
+    # Get all metrics names
+    metrics_names = get_metrics_names(base_dir, get_metrics_fcn, metrics_file)
+
+    # Update table_template
+    metric_names_tpl = ["<th>{}</th>".format(m) for m in metrics_names]
+    table_tpl = table_tpl.format(metrics_names="".join(metric_names_tpl), rows="{rows}")
+
+    # Update row_template
+    metrics_names = [re.sub(r'\W+', '', m) for m in metrics_names]  # remove nonalpha (caused problems with **metrics)
+    metric_names_tpl = ["<td>{{{}}}</td>".format(m) for m in metrics_names]
+    row_tpl = row_tpl.format(metrics_names="".join(metric_names_tpl), exp_dir="{exp_dir}", description="{description}")
+
+    # Iterate over experiments and get html row for each
+    formatter = PartialFormatter()
+    rows = []
+    for exp_dir, exp_path, date_changed in list_experiments(base_dir):
+        # Load metrics
+        metrics_file_path = os.path.join(exp_path, metrics_file)
+        metrics_rows = get_metrics_fcn(metrics_file_path)
+
+        for metrics in metrics_rows:
+            # remove nonalpha (caused problems with **metrics)
+            metrics = {re.sub(r'\W+', '', k): v for k, v in metrics.items()}
+
+            row = formatter.format(
+                row_tpl,
+                exp_dir=exp_dir,
+                description=DescriptionToHtml.get_description_html(exp_path),
+                **metrics
+            )
+            rows.append(row)
+
+    # Fill rows in the table template
+    table = table_tpl.format(rows="\n".join(rows))
+
+    return table
+
+
+def get_metrics_names(base_dir, get_metrics_fcn, metrics_file):
+    metrics_names = set()
+    for exp_dir, exp_path, date_changed in list_experiments(base_dir):
+        metrics_file_path = os.path.join(exp_path, metrics_file)
+        for metrics in get_metrics_fcn(metrics_file_path):
+            exp_metric_names = metrics.keys()
+            metrics_names |= set(exp_metric_names)
+    metrics_names = sorted(metrics_names)
+    return metrics_names
 
 
 def html_navigation(base_dir, selected_experiment=None):
@@ -344,9 +437,6 @@ def html_anchor_navigation(base_dir, experiment_dir, modules):
     ))
 
 
-# , '{exp_dir}'
-
-
 def list_experiments(base_dir):
     """Return list of tuples(experiment_directory, experiment_absolute_path).
 
@@ -357,6 +447,22 @@ def list_experiments(base_dir):
                    for exp_dir in os.listdir(base_dir)
                    if path.isdir(path.join(base_dir, exp_dir))],
                   key=lambda x: x[2], reverse=True)
+
+
+def return_type_list_of_dicts(fcn, return_on_fail=None):
+    def wrapper(*args, **kwargs):
+        try:
+            out = fcn(*args, **kwargs)
+            assert isinstance(out, list), type(out)
+            assert len(out) > 0, len(out)
+            for item in out:
+                assert isinstance(item, dict), type(item)
+            return out
+        except Exception as e:
+            logging.warning("Exception in {}: {}".format(fcn.__name__, e))
+            return return_on_fail
+
+    return wrapper
 
 
 class NoCacheStaticHandler(tornado.web.StaticFileHandler):
