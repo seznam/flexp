@@ -258,6 +258,19 @@ class MainHandler(tornado.web.RequestHandler):
         self.write(html)
 
 
+# todo
+# def annotation_save(self, values):
+#     keys, if_true = values
+#
+#
+# def rename_folder(self, values):
+#     pass
+#
+# actions = {
+#     'neco': neco,
+# }
+
+
 class AjaxHandler(tornado.web.RequestHandler):
     """
     Handler controls behaviour when delete folder or rename folder or change file content icons are used.
@@ -272,7 +285,6 @@ class AjaxHandler(tornado.web.RequestHandler):
     def post(self):
         action = self.get_argument('action')
         value = self.get_argument('value')
-
         if action == "delete_folder":
             if "/" not in value:
                 folder = os.path.join(self.experiments_folder, value)
@@ -292,6 +304,16 @@ class AjaxHandler(tornado.web.RequestHandler):
             file_name = self.get_argument('file_name')
             with open(os.path.join(self.experiments_folder, value, file_name), "w") as file:
                 file.write(new_content)
+
+        if action == "annotation_save":
+            from common.databases.mdb import MDB
+            key = self.get_argument('id')
+            annotation_file = self.get_argument('annotation_file')
+            value = value == 'true'
+            with MDB(annotation_file, pickle_keys=True)as annotations:
+                annotations.put(key, value)
+
+        # todo actions[action](value)
 
 
 def html_table(base_dir, get_metrics_fcn, metrics_file):

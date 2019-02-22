@@ -94,7 +94,22 @@ $(function(){
     width = get_cookie("sidenav_width", "300px");
     resize_main(width);
 
+
 });
+
+
+function annotate(obj) {
+
+$.post("/ajax", {action: "annotation_save", value: $(obj).is(":checked"), id: $(obj).attr("id"),
+                    annotation_file: $(obj).attr('value')})
+            .done(function(){
+
+            })
+            .fail(function(xhr, status, error){
+                alert(error)
+            });
+}
+
 
 function show_element(element, show){
     if (show){
