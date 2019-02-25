@@ -108,6 +108,8 @@ $.post("/ajax", {action: "annotation_save", value: $(obj).is(":checked"), id: $(
             .fail(function(xhr, status, error){
                 alert(error)
             });
+document.getElementById("tr_"+$(obj).attr("id")).style.backgroundColor = 'white';
+document.getElementById("tr_"+$(obj).attr("id")).style.color = 'blue';
 }
 
 
