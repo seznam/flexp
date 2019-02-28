@@ -70,15 +70,19 @@ def default_get_metrics(file_path):
     return metrics_list
 
 
-def run(port=7777, chain=default_html_chain, get_metrics_fcn=default_get_metrics, metrics_file="metrics.csv"):
+def run(port=7777, chain=default_html_chain, get_metrics_fcn=default_get_metrics, metrics_file="metrics.csv",
+        additional_paths=None):
     """
     Run the whole browser with optional own `port` number and `chain` of ToHtml modules.
     Allows reading main metrics from all experiments and show them in experiment list.
+    :param list[tuple(str, StaticFileHandler, dict[str, str])] additional_paths: list of paths tha should be added
+        to tornado Application
     :param int port: Port on which to start flexp browser
     :param list[ToHtml]|ToHtml chain: List of ToHtml instances that defines what to print
     :param (Callable[str]) -> list[dict[str, Any]] get_metrics_fcn: Function that takes filename of a file with
-    metrics and return dict[metric_name, value].
+        metrics and return dict[metric_name, value].
     :param str metrics_file: Filename in each experiment dir which contains metrics values.
+
     """
 
     # append new modules to the default chain
@@ -98,12 +102,13 @@ def run(port=7777, chain=default_html_chain, get_metrics_fcn=default_get_metrics
 
     here_path = os.path.dirname(os.path.abspath(__file__))
 
+    additional_paths = additional_paths if additional_paths else []
     app = tornado.web.Application([
         (r"/", MainHandler, main_handler_params),
         (r'/(favicon.ico)', tornado.web.StaticFileHandler, {"path": path.join(here_path, "static/")}),
         (r"/file/(.*)", NoCacheStaticHandler, {'path': os.getcwd()}),
         (r"/static/(.*)", tornado.web.StaticFileHandler, {'path': path.join(here_path, "static")}),
-        (r"/ajax", AjaxHandler, {"experiments_folder": os.getcwd()})],
+        (r"/ajax", AjaxHandler, {"experiments_folder": os.getcwd()})] + additional_paths,
         {"debug": True}
     )
 
