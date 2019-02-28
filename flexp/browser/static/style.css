@@ -45,11 +45,6 @@ table{
     table-layout: fixed;
 }
 
-table.auto{
-    width: 100%;
-    table-layout: auto;
-}
-
 table tr td, table tr th{
     word-wrap: break-word;
 }

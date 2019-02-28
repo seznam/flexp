@@ -258,18 +258,50 @@ class MainHandler(tornado.web.RequestHandler):
         self.write(html)
 
 
-# todo
-# def annotation_save(self, values):
-#     keys, if_true = values
-#
-#
-# def rename_folder(self, values):
-#     pass
-#
-# actions = {
-#     'neco': neco,
-# }
+# ----------  default functions for AJAX handler
+def delete_folder(value, ajax_handler):
+    """
+    Delete chosen folder from left menu
+    """
+    if "/" not in value:
+        folder = os.path.join(ajax_handler.experiments_folder, value)
+        shutil.rmtree(folder)
 
+
+def rename_folder(value, ajax_handler):
+    """
+    Renames chosen folder from left menu
+    """
+    new_name = ajax_handler.get_argument('new_name')
+    folder = os.path.join(ajax_handler.experiments_folder, value)
+    new_folder = os.path.join(ajax_handler.experiments_folder, new_name)
+    if os.path.exists(folder) and not os.path.exists(new_folder) and "/" not in value and "/" not in new_name:
+        os.rename(folder, new_folder)
+    else:
+        ajax_handler.send_error(500, reason="Rename folder not successful. Check old and new name.")
+
+
+def change_file_content(value, ajax_handler):
+    """
+    Replaces file content
+    """
+    new_content = ajax_handler.get_argument('new_content')
+    file_name = ajax_handler.get_argument('file_name')
+    with open(os.path.join(ajax_handler.experiments_folder, value, file_name), "w") as file:
+        file.write(new_content)
+
+
+# usage:
+# >>> def custom_function(value, ajax_handler):
+# >>>     ....
+#
+# >>> from flexp.browser import browser
+# >>> browser.actions['custom_function'] = custom_function
+actions = {
+    'delete_folder': delete_folder,
+    'rename_folder': rename_folder,
+    'change_file_content': change_file_content,
+}
 
 
 class AjaxHandler(tornado.web.RequestHandler):
@@ -286,35 +318,10 @@ class AjaxHandler(tornado.web.RequestHandler):
     def post(self):
         action = self.get_argument('action')
         value = self.get_argument('value')
-        if action == "delete_folder":
-            if "/" not in value:
-                folder = os.path.join(self.experiments_folder, value)
-                shutil.rmtree(folder)
 
-        if action == "rename_folder":
-            new_name = self.get_argument('new_name')
-            folder = os.path.join(self.experiments_folder, value)
-            new_folder = os.path.join(self.experiments_folder, new_name)
-            if os.path.exists(folder) and not os.path.exists(new_folder) and "/" not in value and "/" not in new_name:
-                os.rename(folder, new_folder)
-            else:
-                self.send_error(500, reason="Rename folder not successful. Check old and new name.")
-
-        if action == "change_file_content":
-            new_content = self.get_argument('new_content')
-            file_name = self.get_argument('file_name')
-            with open(os.path.join(self.experiments_folder, value, file_name), "w") as file:
-                file.write(new_content)
-
-        if action == "annotation_save":
-            from common.databases.mdb import MDB
-            key = self.get_argument('id')
-            annotation_file = self.get_argument('annotation_file')
-            value = int(value)
-            with MDB(annotation_file, pickle_keys=True) as annotations:
-                annotations.put(key, value)
-
-        # todo actions[action](value)
+        if action not in actions:
+            raise ValueError("Unknown action {}".format(action))
+        actions[action](value, self)
 
 
 def html_table(base_dir, get_metrics_fcn, metrics_file):
