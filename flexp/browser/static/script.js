@@ -99,17 +99,19 @@ $(function(){
 
 
 function annotate(obj) {
-
-$.post("/ajax", {action: "annotation_save", value: $(obj).is(":checked"), id: $(obj).attr("id"),
-                    annotation_file: $(obj).attr('value')})
+form_id = $(obj).attr("id")
+$.post("/ajax", {action: "annotation_save",
+                 value: obj.options[obj.selectedIndex].value,
+                 id: form_id,
+                 annotation_file: $(obj).attr('value')})
             .done(function(){
 
             })
             .fail(function(xhr, status, error){
                 alert(error)
             });
-document.getElementById("tr_"+$(obj).attr("id")).style.backgroundColor = 'white';
-document.getElementById("tr_"+$(obj).attr("id")).style.color = 'blue';
+document.getElementById("tr_"+form_id).style.backgroundColor = 'white';
+document.getElementById("tr_"+form_id).style.color = 'blue';
 }
 
 

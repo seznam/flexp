@@ -271,6 +271,7 @@ class MainHandler(tornado.web.RequestHandler):
 # }
 
 
+
 class AjaxHandler(tornado.web.RequestHandler):
     """
     Handler controls behaviour when delete folder or rename folder or change file content icons are used.
@@ -309,8 +310,8 @@ class AjaxHandler(tornado.web.RequestHandler):
             from common.databases.mdb import MDB
             key = self.get_argument('id')
             annotation_file = self.get_argument('annotation_file')
-            value = value == 'true'
-            with MDB(annotation_file, pickle_keys=True)as annotations:
+            value = int(value)
+            with MDB(annotation_file, pickle_keys=True) as annotations:
                 annotations.put(key, value)
 
         # todo actions[action](value)
