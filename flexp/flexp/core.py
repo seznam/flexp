@@ -32,6 +32,7 @@ class ExperimentHandler(object):
     """Class handling experiment."""
 
     METADATA_FILE_PATH = "flexp_info.txt"
+    SUCCESS_PATH = ".SUCCESS"
 
     def __init__(self, default_rights=RWXRWS):
         self._setup = False
@@ -48,6 +49,20 @@ class ExperimentHandler(object):
 
         self.disabled = False
         self.default_rights = default_rights
+
+        # exit reason info
+        self._exit_code = None
+        self._exception = None
+        self._orig_exit = sys.exit
+        sys.exit = self._exit
+        sys.excepthook = self._exc_handler
+
+    def _exit(self, code=0):
+        self._exit_code = code
+        self._orig_exit(code)
+
+    def _exc_handler(self, exc_type, exc, *args):
+        self._exception = exc
 
     @property
     def name(self):
@@ -115,6 +130,8 @@ class ExperimentHandler(object):
         os.chmod(self.get_file_path(self.METADATA_FILE_PATH), self.default_rights)
         log.info("metadata have been saved to " + self.get_file_path(self.METADATA_FILE_PATH))
         log.info("experiment folder: {}".format(self.get_experiment_dir()))
+        if self._exit_code is None and self._exception is None:
+            open(self.get_file_path(self.SUCCESS_PATH), "w").close()
 
     def get_experiment_dir(self):
         """
