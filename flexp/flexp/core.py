@@ -144,15 +144,10 @@ class ExperimentHandler(object):
                     print(self._exception, file=fout)
 
             if self._exception is not None:
-                try:
-                    raise self._exception
-                except Exception:
-                    log.error(
-                        "",
-                        exc_info=(
-                            self._exc_type, self._exception, self._traceback
-                        )
-                    )
+                log.error(
+                    "",
+                    exc_info=(self._exc_type, self._exception, self._traceback)
+                )
 
     def get_experiment_dir(self):
         """
