@@ -396,7 +396,7 @@ def html_navigation(base_dir, selected_experiment=None):
 
         if not path.exists(path.join(exp_dir, "flexp_info.txt")):
             classes.append("running")
-        elif not path.exists(path.join(exp_dir, ".SUCCESS")):
+        elif path.exists(path.join(exp_dir, ".FAIL")):
             classes.append("failed")
         items.append(
             u"""<div class='' style='white-space: nowrap;'>

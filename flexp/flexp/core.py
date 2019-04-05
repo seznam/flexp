@@ -33,6 +33,7 @@ class ExperimentHandler(object):
 
     METADATA_FILE_PATH = "flexp_info.txt"
     SUCCESS_PATH = ".SUCCESS"
+    FAIL_PATH = ".FAIL"
 
     def __init__(self, default_rights=RWXRWS):
         self._setup = False
@@ -51,18 +52,21 @@ class ExperimentHandler(object):
         self.default_rights = default_rights
 
         # exit reason info
-        self._exit_code = None
+        self._exit_code = 0
         self._exception = None
         self._orig_exit = sys.exit
         sys.exit = self._exit
         sys.excepthook = self._exc_handler
+        self._traceback = None
 
     def _exit(self, code=0):
         self._exit_code = code
         self._orig_exit(code)
 
-    def _exc_handler(self, exc_type, exc, *args):
+    def _exc_handler(self, exc_type, exc, tb, *args):
+        self._exc_type = exc_type
         self._exception = exc
+        self._traceback = tb
 
     @property
     def name(self):
@@ -130,8 +134,25 @@ class ExperimentHandler(object):
         os.chmod(self.get_file_path(self.METADATA_FILE_PATH), self.default_rights)
         log.info("metadata have been saved to " + self.get_file_path(self.METADATA_FILE_PATH))
         log.info("experiment folder: {}".format(self.get_experiment_dir()))
-        if self._exit_code is None and self._exception is None:
+        if self._exit_code == 0 and self._exception is None:
             open(self.get_file_path(self.SUCCESS_PATH), "w").close()
+        else:
+            open(self.get_file_path(self.FAIL_PATH), "w").close()
+            with open(self.get_file_path(self.FAIL_PATH), "w") as fout:
+                print("exit code", self._exit_code, file=fout)
+                if self._exception is not None:
+                    print(self._exception, file=fout)
+
+            if self._exception is not None:
+                try:
+                    raise self._exception
+                except Exception:
+                    log.error(
+                        "",
+                        exc_info=(
+                            self._exc_type, self._exception, self._traceback
+                        )
+                    )
 
     def get_experiment_dir(self):
         """
