@@ -149,6 +149,10 @@ div.tooltip {
     background-color: #fcc;
 }
 
+.failed {
+    background-color: #d99;
+}
+
 /* --- rc-rank file --- */
 .rc-rank-file{
     margin: 10px 10px 0 0;

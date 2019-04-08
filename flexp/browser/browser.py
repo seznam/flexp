@@ -396,6 +396,8 @@ def html_navigation(base_dir, selected_experiment=None):
 
         if not path.exists(path.join(exp_dir, "flexp_info.txt")):
             classes.append("running")
+        elif path.exists(path.join(exp_dir, ".FAIL")):
+            classes.append("failed")
         items.append(
             u"""<div class='' style='white-space: nowrap;'>
             <div onclick=\"$('#dialog-confirm').data('folder', '{exp_dir}').dialog('open')\" class=\"delete\">&nbsp;</div>
