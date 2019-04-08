@@ -121,9 +121,6 @@ function edit_txt(){
         $.post("/ajax", {action: "change_file_content", value: folder, file_name:file_name, new_content:new_content})
             .done(function(){
                 var url = location.href;
-                if (url.endsWith(folder)){
-                    url = url.replace(folder, new_name);
-                }
                 location.href = url;
             })
             .fail(function(xhr, status, error){

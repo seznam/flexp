@@ -76,7 +76,7 @@ def run(
         chain=default_html_chain,
         get_metrics_fcn=default_get_metrics,
         metrics_file="metrics.csv",
-        experiments_dir=os.getcwd()
+        experiments_dir=os.getcwd(),
 ):
     """
     Run the whole browser with optional own `port` number and `chain` of ToHtml modules.
@@ -86,40 +86,34 @@ def run(
     :param (Callable[str]) -> list[dict[str, Any]] get_metrics_fcn: Function that takes filename of a file with
     metrics and return dict[metric_name, value].
     :param str metrics_file: Filename in each experiment dir which contains metrics values.
+    :param str experiments_dir: Path to directory with experiments, default=<current_directory>
     """
-    MainHandler.experiments_folder = experiments_dir
-    AjaxHandler.experiments_folder = experiments_dir
 
     # append new modules to the default chain
     if isinstance(chain, ToHtml):
         chain = [chain]
 
-    # handle wrong return type and expetions in get_metrics_fcn
+    # handle wrong return type and exceptions in get_metrics_fcn
     get_metrics_fcn = return_type_list_of_dicts(get_metrics_fcn, return_on_fail=[{}])
     get_metrics_fcn = exception_safe(get_metrics_fcn, return_on_exception=[{}])
 
     main_handler_params = {
         "get_metrics_fcn": get_metrics_fcn,
         "metrics_file": metrics_file,
-        "experiments_folder": os.getcwd(),
+        "experiments_folder": experiments_dir,
         "html_chain": Chain(chain),
     }
 
     here_path = os.path.dirname(os.path.abspath(__file__))
 
-    app = tornado.web.Application([
-        # (r"/", MainHandler, main_handler_params),
-        # (r'/(favicon.ico)', tornado.web.StaticFileHandler, {"path": path.join(here_path, "static/")}),
-        # (r"/file/(.*)", NoCacheStaticHandler, {'path': os.getcwd()}),
-        # (r"/static/(.*)", tornado.web.StaticFileHandler, {'path': path.join(here_path, "static")}),
-        # (r"/ajax", AjaxHandler, {"experiments_folder": os.getcwd()})],
-
-        (r"/", MainHandler, main_handler_params),
-        (r'/(favicon.ico)', tornado.web.StaticFileHandler, {"path": path.join(here_path, "static/")}),
-        (r"/file/(.*)", NoCacheStaticHandler, {'path': MainHandler.experiments_folder}),
-        (r"/static/(.*)", tornado.web.StaticFileHandler, {'path': path.join(here_path, "static")}),
-        (r"/ajax", AjaxHandler)],
-
+    app = tornado.web.Application(
+        [
+            (r"/", MainHandler, main_handler_params),
+            (r'/(favicon.ico)', tornado.web.StaticFileHandler, {"path": path.join(here_path, "static/")}),
+            (r"/file/(.*)", NoCacheStaticHandler, {'path': experiments_dir}),
+            (r"/static/(.*)", tornado.web.StaticFileHandler, {'path': path.join(here_path, "static")}),
+            (r"/ajax", AjaxHandler, {"experiments_folder": experiments_dir})
+        ],
         {"debug": True}
     )
 
@@ -336,7 +330,6 @@ def html_table(base_dir, get_metrics_fcn, metrics_file):
                     {metrics_names}
                 </tr>
             </thead>
-<<<<<<< HEAD
             <tbody>
                 {rows}
             </tbody>
@@ -420,9 +413,9 @@ def html_navigation(base_dir, selected_experiment=None):
         if exp_dir == selected_experiment:
             classes.append('w3-green')
 
-        if not path.exists(path.join(exp_dir, "flexp_info.txt")):
+        if not path.exists(path.join(exp_path, "flexp_info.txt")):
             classes.append("running")
-        elif path.exists(path.join(exp_dir, ".FAIL")):
+        elif path.exists(path.join(exp_path, ".FAIL")):
             classes.append("failed")
         items.append(
             u"""<div class='' style='white-space: nowrap;'>
@@ -508,7 +501,7 @@ class NoCacheStaticHandler(tornado.web.StaticFileHandler):
 @click.command(context_settings=dict(help_option_names=['-h', '--help']))
 @click.option('--port', '-p', default=7777,
               help='Port where to run flexp browser')
-@click.option('--experiments_dir', '-d', default=os.getcwd(),
+@click.option('--experiments_dir', '-d', default=os.getcwd(), type=click.Path(),
               help='path to directory with experiments')
 def main(port, experiments_dir):
     """Console entry point launched by flexp-browser command."""
