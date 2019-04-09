@@ -237,7 +237,7 @@ class PickleCache(Chain, ObjectDumper):
         """
         chain_mtimes = [0.]  # default time in case no other time is obtained
         for module in chain:
-            if isinstance(module, collections.Iterable):  # module is a chain
+            if isinstance(module, collections.abc.Iterable):  # module is a chain
                 chain_mtimes.append(self._get_chain_mtime(module))
             elif hasattr(module, 'process'):  # module is an object
                 chain_mtimes.append(self._get_object_mtime(module))
@@ -254,7 +254,7 @@ class PickleCache(Chain, ObjectDumper):
         """
         chain_repr = []
         for module in chain:
-            if isinstance(module, collections.Iterable):  # module is a chain
+            if isinstance(module, collections.abc.Iterable):  # module is a chain
                 chain_repr.append(self._get_chain_repr(module))
             elif hasattr(module, 'process'):  # module is an object
                 chain_repr.extend(

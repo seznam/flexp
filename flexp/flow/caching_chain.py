@@ -5,7 +5,7 @@ from __future__ import division
 
 import hashlib
 import os
-import time
+import timeit
 
 from flexp.flow import Chain
 from flexp.flow.cache import PickleCache, ObjectDumper
@@ -109,11 +109,11 @@ class CachingChain(Chain, ObjectDumper):
                 else:
                     log.debug("{}()".format(self.names[i]))
                     process_func = self.modules[i]
-                start = time.clock()
+                start = timeit.default_timer()
                 # update data ket from list before running module
                 setattr(data, self.update_data_id,  updated_ids[i])
                 process_func(data)
-                end = time.clock()
+                end = timeit.default_timer()
                 self.times[i] += (end - start)
             except StopIteration:
                 log.debug("{} requested stop. Processing stopped".format(
