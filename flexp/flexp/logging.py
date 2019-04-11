@@ -1,4 +1,5 @@
 import logging
+import sys
 import warnings
 import os
 import six
@@ -50,7 +51,7 @@ class TqdmLoggingHandler(logging.Handler):
     def emit(self, record):
         try:
             msg = self.format(record)
-            tqdm.write(msg)
+            tqdm.write(msg, file=sys.stderr)
             self.flush()
         except (KeyboardInterrupt, SystemExit):
             raise
@@ -68,7 +69,7 @@ def _setup_logging(level=logging.DEBUG, filename='log.txt', disable_stderr=False
         file_handler.setFormatter(log_formatter)
         root_logger.addHandler(file_handler)
     if not disable_stderr:
-        tqdm_handler = TqdmLoggingHandler() # logging.StreamHandler()
+        tqdm_handler = TqdmLoggingHandler(level)
         tqdm_handler.setFormatter(log_formatter)
         root_logger.addHandler(tqdm_handler)
 
