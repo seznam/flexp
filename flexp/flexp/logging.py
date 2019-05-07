@@ -1,7 +1,11 @@
 import logging
+import sys
 import warnings
 import os
 import six
+
+from tqdm import tqdm
+
 
 log_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
@@ -37,6 +41,24 @@ def get_loglevel_from_env(default_level):
     return loglevel_from_string(loglevel)
 
 
+class TqdmLoggingHandler(logging.Handler):
+    """
+    credit: https://stackoverflow.com/questions/38543506/change-logging-print-function-to-tqdm-write-so-logging-doesnt-interfere-wit
+    """
+    def __init__(self, level=logging.NOTSET):
+        super().__init__(level)
+
+    def emit(self, record):
+        try:
+            msg = self.format(record)
+            tqdm.write(msg, file=sys.stderr)
+            self.flush()
+        except (KeyboardInterrupt, SystemExit):
+            raise
+        except:
+            self.handleError(record)
+
+
 def _setup_logging(level=logging.DEBUG, filename='log.txt', disable_stderr=False):
     _close_file_handlers()
     level = loglevel_from_string(level)
@@ -47,9 +69,9 @@ def _setup_logging(level=logging.DEBUG, filename='log.txt', disable_stderr=False
         file_handler.setFormatter(log_formatter)
         root_logger.addHandler(file_handler)
     if not disable_stderr:
-        stream_handler = logging.StreamHandler()
-        stream_handler.setFormatter(log_formatter)
-        root_logger.addHandler(stream_handler)
+        tqdm_handler = TqdmLoggingHandler(level)
+        tqdm_handler.setFormatter(log_formatter)
+        root_logger.addHandler(tqdm_handler)
 
     warnings.simplefilter("once")
 
