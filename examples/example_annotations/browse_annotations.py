@@ -178,7 +178,12 @@ def main(port):
     chain = [
         FlexpInfoToHtml(log_file_name="log.txt"),
         TxtToHtml(file_name_pattern="(description.txt)", title="Experiment info, description"),
-        CsvToHtmlEditable(file_name_pattern="worst_examples_.*.csv", title="Worst examples", classes_names=CLASSES_NAMES),
+        CsvToHtmlEditable(
+            file_name_pattern="worst_examples_.*.csv",
+            title="Worst examples",
+            classes_names=CLASSES_NAMES,
+            delimiter="\t"
+        ),
         TxtToHtml(),
         FilesToHtml(),
     ]
