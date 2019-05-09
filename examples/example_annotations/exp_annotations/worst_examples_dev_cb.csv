@@ -1,21 +1,21 @@
-Query;Diff;Label;Prediction;Url to debug
-basketb;5;4;0;<a target='bte' href='http://goedel.dev.dszn.cz:6325show_annotation?url=basketb&model_path=/www/private/ksenia/research/shopping_intents/shopping_intents/../experiments/all_data.0_2019-05-03-15-25-12/cb.pkl'>18454</a>
-nehtové produkty;5;4;0;<a target='bte' href='http://goedel.dev.dszn.cz:6325show_annotation?url=nehtové produkty&model_path=/www/private/ksenia/research/shopping_intents/shopping_intents/../experiments/all_data.0_2019-05-03-15-25-12/cb.pkl'>25952</a>
-kermi.cz;5;4;0;<a target='bte' href='http://goedel.dev.dszn.cz:6325show_annotation?url=kermi.cz&model_path=/www/private/ksenia/research/shopping_intents/shopping_intents/../experiments/all_data.0_2019-05-03-15-25-12/cb.pkl'>25669</a>
-chocodile;5;4;0;<a target='bte' href='http://goedel.dev.dszn.cz:6325show_annotation?url=chocodile&model_path=/www/private/ksenia/research/shopping_intents/shopping_intents/../experiments/all_data.0_2019-05-03-15-25-12/cb.pkl'>23086</a>
-badezimmer;5;4;0;<a target='bte' href='http://goedel.dev.dszn.cz:6325show_annotation?url=badezimmer&model_path=/www/private/ksenia/research/shopping_intents/shopping_intents/../experiments/all_data.0_2019-05-03-15-25-12/cb.pkl'>26508</a>
-druhy dřeva;5;4;0;<a target='bte' href='http://goedel.dev.dszn.cz:6325show_annotation?url=druhy dřeva&model_path=/www/private/ksenia/research/shopping_intents/shopping_intents/../experiments/all_data.0_2019-05-03-15-25-12/cb.pkl'>12329</a>
-taštice, tašvice;5;4;0;<a target='bte' href='http://goedel.dev.dszn.cz:6325show_annotation?url=taštice, tašvice&model_path=/www/private/ksenia/research/shopping_intents/shopping_intents/../experiments/all_data.0_2019-05-03-15-25-12/cb.pkl'>14410</a>
-max exterior;5;4;0;<a target='bte' href='http://goedel.dev.dszn.cz:6325show_annotation?url=max exterior&model_path=/www/private/ksenia/research/shopping_intents/shopping_intents/../experiments/all_data.0_2019-05-03-15-25-12/cb.pkl'>24937</a>
-salvia paradise;5;4;0;<a target='bte' href='http://goedel.dev.dszn.cz:6325show_annotation?url=salvia paradise&model_path=/www/private/ksenia/research/shopping_intents/shopping_intents/../experiments/all_data.0_2019-05-03-15-25-12/cb.pkl'>26548</a>
-apple bazar;5;4;0;<a target='bte' href='http://goedel.dev.dszn.cz:6325show_annotation?url=apple bazar&model_path=/www/private/ksenia/research/shopping_intents/shopping_intents/../experiments/all_data.0_2019-05-03-15-25-12/cb.pkl'>8851</a>
-schnaidrova;5;4;0;<a target='bte' href='http://goedel.dev.dszn.cz:6325show_annotation?url=schnaidrova&model_path=/www/private/ksenia/research/shopping_intents/shopping_intents/../experiments/all_data.0_2019-05-03-15-25-12/cb.pkl'>18872</a>
-špalíkovač;5;4;0;<a target='bte' href='http://goedel.dev.dszn.cz:6325show_annotation?url=špalíkovač&model_path=/www/private/ksenia/research/shopping_intents/shopping_intents/../experiments/all_data.0_2019-05-03-15-25-12/cb.pkl'>26048</a>
-vekra dvere;5;4;0;<a target='bte' href='http://goedel.dev.dszn.cz:6325show_annotation?url=vekra dvere&model_path=/www/private/ksenia/research/shopping_intents/shopping_intents/../experiments/all_data.0_2019-05-03-15-25-12/cb.pkl'>29862</a>
-parlok;5;4;0;<a target='bte' href='http://goedel.dev.dszn.cz:6325show_annotation?url=parlok&model_path=/www/private/ksenia/research/shopping_intents/shopping_intents/../experiments/all_data.0_2019-05-03-15-25-12/cb.pkl'>27895</a>
-al profily;5;4;0;<a target='bte' href='http://goedel.dev.dszn.cz:6325show_annotation?url=al profily&model_path=/www/private/ksenia/research/shopping_intents/shopping_intents/../experiments/all_data.0_2019-05-03-15-25-12/cb.pkl'>15383</a>
-jimi záclony katalog;5;4;0;<a target='bte' href='http://goedel.dev.dszn.cz:6325show_annotation?url=jimi záclony katalog&model_path=/www/private/ksenia/research/shopping_intents/shopping_intents/../experiments/all_data.0_2019-05-03-15-25-12/cb.pkl'>29263</a>
-indonal recenze;5;4;0;<a target='bte' href='http://goedel.dev.dszn.cz:6325show_annotation?url=indonal recenze&model_path=/www/private/ksenia/research/shopping_intents/shopping_intents/../experiments/all_data.0_2019-05-03-15-25-12/cb.pkl'>20342</a>
-elite;5;4;0;<a target='bte' href='http://goedel.dev.dszn.cz:6325show_annotation?url=elite&model_path=/www/private/ksenia/research/shopping_intents/shopping_intents/../experiments/all_data.0_2019-05-03-15-25-12/cb.pkl'>28436</a>
-tanzanit;5;4;0;<a target='bte' href='http://goedel.dev.dszn.cz:6325show_annotation?url=tanzanit&model_path=/www/private/ksenia/research/shopping_intents/shopping_intents/../experiments/all_data.0_2019-05-03-15-25-12/cb.pkl'>22795</a>
-hanibal sport;5;4;0;<a target='bte' href='http://goedel.dev.dszn.cz:6325show_annotation?url=hanibal sport&model_path=/www/private/ksenia/research/shopping_intents/shopping_intents/../experiments/all_data.0_2019-05-03-15-25-12/cb.pkl'>26425</a>
+Query	Label	Prediction
+basketb	4	0
+nehtové produkty	4	0
+kermi.cz	4	0
+chocodile	4	0
+badezimmer	4	0
+druhy dřeva	4	0
+taštice, tašvice	4	0
+max exterior	4	0
+salvia paradise	4	0
+apple bazar	4	0
+schnaidrova	4	0
+špalíkovač	4	0
+vekra dvere	4	0
+parlok	4	0
+al profily	4	0
+jimi záclony katalog	4	0
+indonal recenze	4	0
+elite	4	0
+tanzanit	4	0
+hanibal sport	4	0
