@@ -7,6 +7,7 @@ Usage:
 Options:
   -h --help     Show this screen.
 """
+
 from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import unicode_literals
@@ -22,11 +23,11 @@ import traceback
 import click
 import tornado.ioloop
 import tornado.web
+from flexp.browser.utils import setup_logging
 
 from flexp.browser.html.generic import DescriptionToHtml, FilesToHtml, ImagesToHtml, FlexpInfoToHtml, CsvToHtml, \
     TxtToHtml, StringToHtml
 from flexp.browser.html.to_html import ToHtml
-from flexp.browser.utils import setup_logging
 from flexp.flow import Chain
 from flexp.utils import get_logger
 from flexp.utils import import_by_filename, PartialFormatter, exception_safe
@@ -70,7 +71,13 @@ def default_get_metrics(file_path):
     return metrics_list
 
 
-def run(port=7777, chain=default_html_chain, get_metrics_fcn=default_get_metrics, metrics_file="metrics.csv"):
+def run(
+        port=7777,
+        chain=default_html_chain,
+        get_metrics_fcn=default_get_metrics,
+        metrics_file="metrics.csv",
+        experiments_dir=os.getcwd(),
+):
     """
     Run the whole browser with optional own `port` number and `chain` of ToHtml modules.
     Allows reading main metrics from all experiments and show them in experiment list.
@@ -79,31 +86,34 @@ def run(port=7777, chain=default_html_chain, get_metrics_fcn=default_get_metrics
     :param (Callable[str]) -> list[dict[str, Any]] get_metrics_fcn: Function that takes filename of a file with
     metrics and return dict[metric_name, value].
     :param str metrics_file: Filename in each experiment dir which contains metrics values.
+    :param str experiments_dir: Path to directory with experiments, default=<current_directory>
     """
 
     # append new modules to the default chain
     if isinstance(chain, ToHtml):
         chain = [chain]
 
-    # handle wrong return type and expetions in get_metrics_fcn
+    # handle wrong return type and exceptions in get_metrics_fcn
     get_metrics_fcn = return_type_list_of_dicts(get_metrics_fcn, return_on_fail=[{}])
     get_metrics_fcn = exception_safe(get_metrics_fcn, return_on_exception=[{}])
 
     main_handler_params = {
         "get_metrics_fcn": get_metrics_fcn,
         "metrics_file": metrics_file,
-        "experiments_folder": os.getcwd(),
+        "experiments_folder": experiments_dir,
         "html_chain": Chain(chain),
     }
 
     here_path = os.path.dirname(os.path.abspath(__file__))
 
-    app = tornado.web.Application([
-        (r"/", MainHandler, main_handler_params),
-        (r'/(favicon.ico)', tornado.web.StaticFileHandler, {"path": path.join(here_path, "static/")}),
-        (r"/file/(.*)", NoCacheStaticHandler, {'path': os.getcwd()}),
-        (r"/static/(.*)", tornado.web.StaticFileHandler, {'path': path.join(here_path, "static")}),
-        (r"/ajax", AjaxHandler, {"experiments_folder": os.getcwd()})],
+    app = tornado.web.Application(
+        [
+            (r"/", MainHandler, main_handler_params),
+            (r'/(favicon.ico)', tornado.web.StaticFileHandler, {"path": path.join(here_path, "static/")}),
+            (r"/file/(.*)", NoCacheStaticHandler, {'path': experiments_dir}),
+            (r"/static/(.*)", tornado.web.StaticFileHandler, {'path': path.join(here_path, "static")}),
+            (r"/ajax", AjaxHandler, {"experiments_folder": experiments_dir})
+        ],
         {"debug": True}
     )
 
@@ -196,12 +206,14 @@ class MainHandler(tornado.web.RequestHandler):
 
     def get(self):
         experiment_folder = self.get_argument("experiment", default="")
+        log.info("experiment folder {}".format(self.experiments_folder))
         experiment_path = path.join(self.experiments_folder, experiment_folder)
 
         if not path.isdir(experiment_path):
             experiment_folder = ""
 
-        navigation_html = html_navigation(self.experiments_folder, experiment_folder)
+        navigation_html = html_navigation(self.experiments_folder,
+                                          experiment_folder)
         header_html = ""
         scripts_html = ""
 
@@ -215,14 +227,17 @@ class MainHandler(tornado.web.RequestHandler):
             # Use custom chain, if present
             if os.path.exists(experiment_path + "/custom_flexp_chain.py"):
                 try:
-                    custom_flexp_chain = import_by_filename('custom_flexp_chain',
-                                                            experiment_path + "/custom_flexp_chain.py")
+                    custom_flexp_chain = import_by_filename(
+                        'custom_flexp_chain',
+                        experiment_path + "/custom_flexp_chain.py")
                     html_chain = custom_flexp_chain.get_chain()
                     html_chain = Chain(html_chain)
                 except:
-                    html_chain = Chain([StringToHtml("<h2>Error processing custom chain. {}</h2>"
-                                                     .format(traceback.format_exc().replace("\n", "</br>")),
-                                                     title="Error in custom chain")] + self.html_chain.modules)
+                    html_chain = Chain([StringToHtml(
+                        "<h2>Error processing custom chain. {}</h2>"
+                            .format(
+                            traceback.format_exc().replace("\n", "</br>")),
+                        title="Error in custom chain")] + self.html_chain.modules)
                 finally:
                     if "custom_flexp_chain" in sys.modules:
                         del sys.modules["custom_flexp_chain"]
@@ -235,7 +250,8 @@ class MainHandler(tornado.web.RequestHandler):
             title_html = "<h1>{}</h1>".format(experiment_folder)
             content_html = u"\n".join(data['html'])
             navigation_html = html_anchor_navigation(
-                experiment_path, experiment_folder, html_chain) + navigation_html
+                experiment_path, experiment_folder,
+                html_chain) + navigation_html
 
             header_html = u"\n".join(u"\n".join(html_lines)
                                      for head_section, html_lines
@@ -282,15 +298,18 @@ class AjaxHandler(tornado.web.RequestHandler):
             new_name = self.get_argument('new_name')
             folder = os.path.join(self.experiments_folder, value)
             new_folder = os.path.join(self.experiments_folder, new_name)
-            if os.path.exists(folder) and not os.path.exists(new_folder) and "/" not in value and "/" not in new_name:
+            if os.path.exists(folder) and not os.path.exists(
+                    new_folder) and "/" not in value and "/" not in new_name:
                 os.rename(folder, new_folder)
             else:
-                self.send_error(500, reason="Rename folder not successful. Check old and new name.")
+                self.send_error(500,
+                                reason="Rename folder not successful. Check old and new name.")
 
         if action == "change_file_content":
             new_content = self.get_argument('new_content')
             file_name = self.get_argument('file_name')
-            with open(os.path.join(self.experiments_folder, value, file_name), "w") as file:
+            with open(os.path.join(self.experiments_folder, value, file_name),
+                      "w") as file:
                 file.write(new_content)
 
 
@@ -394,9 +413,9 @@ def html_navigation(base_dir, selected_experiment=None):
         if exp_dir == selected_experiment:
             classes.append('w3-green')
 
-        if not path.exists(path.join(exp_dir, "flexp_info.txt")):
+        if not path.exists(path.join(exp_path, "flexp_info.txt")):
             classes.append("running")
-        elif path.exists(path.join(exp_dir, ".FAIL")):
+        elif path.exists(path.join(exp_path, ".FAIL")):
             classes.append("failed")
         items.append(
             u"""<div class='' style='white-space: nowrap;'>
@@ -409,7 +428,8 @@ def html_navigation(base_dir, selected_experiment=None):
             <a class=\"{classes} left-margin\" href=\"?experiment={exp_dir}\" title=\"{title}\" style='padding-left:2px'>{exp_dir}</a>
             </div>""".format(
                 exp_dir=exp_dir,
-                title=DescriptionToHtml.get_description_html(exp_path, replace_newlines=False),
+                title=DescriptionToHtml.get_description_html(exp_path,
+                                                             replace_newlines=False),
                 classes=" ".join(classes)))
     return header + "\n".join(items)
 
@@ -440,15 +460,19 @@ def html_anchor_navigation(base_dir, experiment_dir, modules):
 
 
 def list_experiments(base_dir):
-    """Return list of tuples(experiment_directory, experiment_absolute_path).
+    """Return list of tuples(experiment_directory, experiment_absolute_path,
+    last modified time) sorted by modification time.
 
     :param base_dir: parent folder in which to look for an experiment folders
-    :return: list[tuple[str, str]]
+    :return: list[tuple[str, str, int]]
     """
-    return sorted([(exp_dir, path.join(base_dir, exp_dir), os.path.getmtime(exp_dir))
-                   for exp_dir in os.listdir(base_dir)
-                   if path.isdir(path.join(base_dir, exp_dir))],
-                  key=lambda x: x[2], reverse=True)
+    return sorted([
+        (exp_dir,
+         path.join(base_dir, exp_dir),
+         os.path.getmtime(path.join(base_dir, exp_dir)))
+        for exp_dir in os.listdir(base_dir)
+        if path.isdir(path.join(base_dir, exp_dir))],
+        key=lambda x: x[2], reverse=True)
 
 
 def return_type_list_of_dicts(fcn, return_on_fail=None):
@@ -474,12 +498,16 @@ class NoCacheStaticHandler(tornado.web.StaticFileHandler):
         return False
 
 
-@click.command()
-@click.option('--port', '-p', default=7777, help='Port where to run flexp browser')
-def main(port):
+@click.command(context_settings=dict(help_option_names=['-h', '--help']))
+@click.option('--port', '-p', default=7777,
+              help='Port where to run flexp browser')
+@click.option('--experiments_dir', '-d', default=os.getcwd(), type=click.Path(),
+              help='path to directory with experiments')
+def main(port, experiments_dir):
     """Console entry point launched by flexp-browser command."""
     setup_logging("info")
-    run(port)
+    run(port=port,
+        experiments_dir=experiments_dir)
 
 
 if __name__ == "__main__":

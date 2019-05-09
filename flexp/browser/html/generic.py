@@ -46,7 +46,7 @@ class TxtToHtml(ToHtml):
                "<b>{file_link}</b> " \
                "<div class=\"edit padding-right {class_editable}\" " \
                "onclick=\"$('#new_content').text('{content_strip}'); " \
-               "$('#edit-txt').data('folder', '{experiment_path}').data('file_name', '{filename}').dialog('open')\">&nbsp;" \
+               "$('#edit-txt').data('folder', '{experiment_folder}').data('file_name', '{filename}').dialog('open')\">&nbsp;" \
                "</div>" \
                "</div>" \
                "<p>{content}</p>" \
@@ -54,7 +54,7 @@ class TxtToHtml(ToHtml):
                "</div>"
 
     def to_html(self, file_name):
-        filepath = join(self.experiment_folder, file_name)
+        filepath = join(self.experiment_path, file_name)
         with io.open(filepath, encoding="utf8") as f:
             lines = list(islice(f, self.max_rows + 1))
             trimmed = len(lines) > self.max_rows
@@ -83,6 +83,7 @@ class TxtToHtml(ToHtml):
             file_link=link,
             content_strip=raw_content,
             experiment_path=self.experiment_path,
+            experiment_folder=self.experiment_folder,
             class_editable=class_editable,
             trim_msg=trim_msg,
         )
