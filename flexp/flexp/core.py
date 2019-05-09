@@ -22,6 +22,7 @@ from flexp.utils import get_logger
 log = get_logger(__name__)
 
 RWXRWS = stat.S_IRWXU | stat.S_IRWXG | stat.S_ISGID
+RWXRWSR = stat.S_IRWXU | stat.S_IRWXG | stat.S_ISGID | stat.S_IROTH
 RWRWR = stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH
 RWXRWXRWX = stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IWOTH | stat.S_IXOTH
 
@@ -35,7 +36,7 @@ class ExperimentHandler(object):
     SUCCESS_PATH = ".SUCCESS"
     FAIL_PATH = ".FAIL"
 
-    def __init__(self, default_rights=RWXRWS):
+    def __init__(self, default_rights=RWXRWSR):
         self._setup = False
 
         self._root_dir = None
@@ -284,7 +285,7 @@ def clean_experiment_dir(override_dir):
                 shutil.rmtree(file_path)
 
 
-def setup(root_dir, exp_name=None, with_date=False, backup=True, default_rights=RWXRWS, loglevel=logging.DEBUG,
+def setup(root_dir, exp_name=None, with_date=False, backup=True, default_rights=RWXRWSR, loglevel=logging.DEBUG,
           log_filename='log.txt', disable_stderr=False, override_dir=False):
     """Set up Experiment handler.
 
