@@ -11,9 +11,6 @@ import click
 import logging
 
 from flexp.browser import browser
-from flexp.browser.html.generic import (
-    CsvToHtml, ImagesToHtml,
-    TxtToHtml, FilesToHtml, FlexpInfoToHtml, TxtToHtml)
 from flexp.browser.utils import setup_logging
 from os.path import join, split
 import tornado.ioloop
@@ -172,15 +169,12 @@ CLASSES_NAMES = {
     4: "Four",
 }
 
+
 @click.command()
 @click.option('--port', '-p', default=8111, help='Port')
 def main(port):
     chain = [
-        FlexpInfoToHtml(log_file_name="log.txt"),
-        TxtToHtml(file_name_pattern="(description.txt)", title="Experiment info, description"),
         CsvToHtmlEditable(file_name_pattern="worst_examples_.*.csv", title="Worst examples", classes_names=CLASSES_NAMES),
-        TxtToHtml(),
-        FilesToHtml(),
     ]
 
     my_path = os.path.dirname(os.path.abspath(__file__))
