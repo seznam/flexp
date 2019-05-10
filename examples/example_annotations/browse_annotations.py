@@ -178,7 +178,6 @@ def main(port):
     ]
 
     my_path = os.path.dirname(os.path.abspath(__file__))
-    # todo move from experimens folder (can be accidentally removed..)
     browser.run(port=port, chain=chain, additional_paths=[(r"/{}/(.*)".format(STATIC_PATH), tornado.web.StaticFileHandler,
                                                            {'path': path.join(my_path, STATIC_PATH)})])
 
