@@ -130,7 +130,6 @@ class CsvToHtmlEditable(ToHtml):
                     else:
                         mdb_value = 0
                         html += '<tr id="tr_{}" bgcolor="#ffffff">'.format(mdb_key)
-                    print("mdb_value", mdb_value)
                     for i_r, column in enumerate(row):
                         html += '<td>' + column + '</td>'
                     html += '<td><select id="{}" annotations_file="{}" onchange="annotate(this);">' \
@@ -174,7 +173,8 @@ CLASSES_NAMES = {
 @click.option('--port', '-p', default=8111, help='Port')
 def main(port):
     chain = [
-        CsvToHtmlEditable(file_name_pattern="worst_examples_.*.csv", title="Worst examples", classes_names=CLASSES_NAMES),
+        CsvToHtmlEditable(file_name_pattern="worst_examples_.*.csv", title="Worst examples",
+                          classes_names=CLASSES_NAMES, delimiter='\t'),
     ]
 
     my_path = os.path.dirname(os.path.abspath(__file__))
