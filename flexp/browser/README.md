@@ -83,6 +83,25 @@ def get_chain():
 ```
 
 
+### 6. Annotate data right there in the experiment
+You can create specific annotation file and annotate data right in the
+experiment. There is an example module CsvToHtmlEditable that shows how
+to do that. Strictly speaking you just need to add that to browse.py and edit values.
+You also have to give an `additional path` to static files
+```python
+STATIC_PATH = 'static_annotations'
+
+chain = [
+    CsvToHtmlEditable(file_name_pattern="worst_examples_.*.csv", title="Worst examples", classes_names=CLASSES_NAMES),
+]
+
+my_path = os.path.dirname(os.path.abspath(__file__))
+browser.run(port=port, chain=chain, additional_paths=[(r"/{}/(.*)".format(STATIC_PATH), tornado.web.StaticFileHandler,
+                                                       {'path': path.join(my_path, STATIC_PATH)})])
+```
+
+See details in an [example](/examples/example_annotations/browse_annotations.py).
+
 ## List of all modules
 
 There is a list of provided modules. You can also create your custom module 

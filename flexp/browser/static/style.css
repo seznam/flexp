@@ -44,12 +44,15 @@ table{
     width: 100%;
     table-layout: fixed;
 }
+
 table tr td, table tr th{
     word-wrap: break-word;
 }
 table.tr-link tr {
     cursor: pointer;
 }
+
+
 .w3-ul{
 }
 table caption{

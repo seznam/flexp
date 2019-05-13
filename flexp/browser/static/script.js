@@ -94,6 +94,7 @@ $(function(){
     width = get_cookie("sidenav_width", "300px");
     resize_main(width);
 
+
 });
 
 function show_element(element, show){

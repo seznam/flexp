@@ -70,15 +70,19 @@ def default_get_metrics(file_path):
     return metrics_list
 
 
-def run(port=7777, chain=default_html_chain, get_metrics_fcn=default_get_metrics, metrics_file="metrics.csv"):
+def run(port=7777, chain=default_html_chain, get_metrics_fcn=default_get_metrics, metrics_file="metrics.csv",
+        additional_paths=None):
     """
     Run the whole browser with optional own `port` number and `chain` of ToHtml modules.
     Allows reading main metrics from all experiments and show them in experiment list.
+    :param list[tuple(str, StaticFileHandler, dict[str, str])] additional_paths: list of paths tha should be added
+        to tornado Application
     :param int port: Port on which to start flexp browser
     :param list[ToHtml]|ToHtml chain: List of ToHtml instances that defines what to print
     :param (Callable[str]) -> list[dict[str, Any]] get_metrics_fcn: Function that takes filename of a file with
-    metrics and return dict[metric_name, value].
+        metrics and return dict[metric_name, value].
     :param str metrics_file: Filename in each experiment dir which contains metrics values.
+
     """
 
     # append new modules to the default chain
@@ -98,12 +102,13 @@ def run(port=7777, chain=default_html_chain, get_metrics_fcn=default_get_metrics
 
     here_path = os.path.dirname(os.path.abspath(__file__))
 
+    additional_paths = additional_paths if additional_paths else []
     app = tornado.web.Application([
         (r"/", MainHandler, main_handler_params),
         (r'/(favicon.ico)', tornado.web.StaticFileHandler, {"path": path.join(here_path, "static/")}),
         (r"/file/(.*)", NoCacheStaticHandler, {'path': os.getcwd()}),
         (r"/static/(.*)", tornado.web.StaticFileHandler, {'path': path.join(here_path, "static")}),
-        (r"/ajax", AjaxHandler, {"experiments_folder": os.getcwd()})],
+        (r"/ajax", AjaxHandler, {"experiments_folder": os.getcwd()})] + additional_paths,
         {"debug": True}
     )
 
@@ -258,6 +263,52 @@ class MainHandler(tornado.web.RequestHandler):
         self.write(html)
 
 
+# ----------  default functions for AJAX handler
+def delete_folder(value, ajax_handler):
+    """
+    Delete chosen folder from left menu
+    """
+    if "/" not in value:
+        folder = os.path.join(ajax_handler.experiments_folder, value)
+        shutil.rmtree(folder)
+
+
+def rename_folder(value, ajax_handler):
+    """
+    Renames chosen folder from left menu
+    """
+    new_name = ajax_handler.get_argument('new_name')
+    folder = os.path.join(ajax_handler.experiments_folder, value)
+    new_folder = os.path.join(ajax_handler.experiments_folder, new_name)
+    if os.path.exists(folder) and not os.path.exists(new_folder) and "/" not in value and "/" not in new_name:
+        os.rename(folder, new_folder)
+    else:
+        ajax_handler.send_error(500, reason="Rename folder not successful. Check old and new name.")
+
+
+def change_file_content(value, ajax_handler):
+    """
+    Replaces file content
+    """
+    new_content = ajax_handler.get_argument('new_content')
+    file_name = ajax_handler.get_argument('file_name')
+    with open(os.path.join(ajax_handler.experiments_folder, value, file_name), "w") as file:
+        file.write(new_content)
+
+
+# usage:
+# >>> def custom_function(value, ajax_handler):
+# >>>     ....
+#
+# >>> from flexp.browser import browser
+# >>> browser.actions['custom_function'] = custom_function
+actions = {
+    'delete_folder': delete_folder,
+    'rename_folder': rename_folder,
+    'change_file_content': change_file_content,
+}
+
+
 class AjaxHandler(tornado.web.RequestHandler):
     """
     Handler controls behaviour when delete folder or rename folder or change file content icons are used.
@@ -273,25 +324,9 @@ class AjaxHandler(tornado.web.RequestHandler):
         action = self.get_argument('action')
         value = self.get_argument('value')
 
-        if action == "delete_folder":
-            if "/" not in value:
-                folder = os.path.join(self.experiments_folder, value)
-                shutil.rmtree(folder)
-
-        if action == "rename_folder":
-            new_name = self.get_argument('new_name')
-            folder = os.path.join(self.experiments_folder, value)
-            new_folder = os.path.join(self.experiments_folder, new_name)
-            if os.path.exists(folder) and not os.path.exists(new_folder) and "/" not in value and "/" not in new_name:
-                os.rename(folder, new_folder)
-            else:
-                self.send_error(500, reason="Rename folder not successful. Check old and new name.")
-
-        if action == "change_file_content":
-            new_content = self.get_argument('new_content')
-            file_name = self.get_argument('file_name')
-            with open(os.path.join(self.experiments_folder, value, file_name), "w") as file:
-                file.write(new_content)
+        if action not in actions:
+            raise ValueError("Unknown action {}".format(action))
+        actions[action](value, self)
 
 
 def html_table(base_dir, get_metrics_fcn, metrics_file):
