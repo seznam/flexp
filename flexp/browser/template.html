@@ -1,0 +1,68 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>Flexp Browser</title>
+    <link rel="stylesheet" type="text/css" href="/static/w3.css">
+    <link rel="stylesheet" type="text/css" href="/static/jquery-ui.min.css">
+    <link rel="stylesheet" type="text/css" href="/static/style.css">
+    <link rel="icon" type="image/png" href="/static/favicon-32x32.png" sizes="32x32">
+    <link rel="icon" type="image/png" href="/static/favicon-16x16.png" sizes="16x16">
+    <script src="/static/jquery-2.2.3.min.js"></script>
+    <script src="/static/jquery-ui.min.js"></script>
+    <script src="/static/jquery.tablesorter.min.js"></script>
+    <script src="/static/script.js"></script>
+    <!-- HEADER GENERATED FROM CHAIN -- START -->
+    {% raw header %}
+    <!-- HEADER GENERATED FROM CHAIN -- END -->
+</head>
+
+<body>
+    <nav id='sidenav' class='w3-sidenav w3-light-grey w3-card-4' onclick='nav_onresize()'>
+        {% raw navigation %}
+    </nav>
+
+    <section id='main' class="w3-main">
+        {% raw title %}
+        {% raw content %}
+
+    </section>
+
+    <footer id='footer'>
+        <p class='info'>Copyright (c) 2016, Seznam.cz, a.s. <br />
+        Tomáš Přinda &lt;tomas.prinda@firma.seznam.cz&gt;</p>
+    </footer>
+
+    <div id="dialog-confirm" title="Delete?">
+      <p>
+        <span class="ui-icon ui-icon-alert" style="float:left; margin:12px 12px 20px 0;"></span>
+        Delete the folder?
+      </p>
+    </div>
+    <div id="dialog-rename" title="Rename">
+        <form>
+              <label for="new_name">New folder name:</label>
+              <input type="text" name="new_name" id="new_name" value="" class="text ui-widget-content ui-corner-all" />
+        </form>
+    </div>
+    <div id="edit-txt" title="Replace contents">
+        <form>
+                <label for="new_content">New content:</label>
+                <textarea
+                    cols=50
+                    rows=10
+                    type="text"
+                    name="new_content"
+                    id="new_content"
+                    class="text ui-widget-content ui-corner-all"
+                >
+                </textarea>
+        </form>
+    </div>
+
+    <!-- SCRIPTS GENERATED FROM CHAIN -- START -->
+    {% raw scripts %}
+    <!-- SCRIPTS GENERATED FROM CHAIN -- END -->
+</body>
+
+</html>
