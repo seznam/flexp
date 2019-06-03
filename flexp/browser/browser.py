@@ -104,7 +104,6 @@ def run(port=7777, chain=default_html_chain, get_metrics_fcn=default_get_metrics
 
     additional_paths = additional_paths if additional_paths else []
 
-    print(additional_paths)
     app = tornado.web.Application([
         (r"/", MainHandler, main_handler_params),
         (r'/(favicon.ico)', tornado.web.StaticFileHandler, {"path": path.join(here_path, "static/")}),
@@ -164,7 +163,6 @@ class MainHandler(tornado.web.RequestHandler):
                 html_chain = self.html_chain
             html_chain.process(data)
             html_chain.close()
-            print("AFTER", data['html'])
 
             navigation_html = html_anchor_navigation(
                 experiment_path, experiment_folder, html_chain) + navigation_html
@@ -172,10 +170,8 @@ class MainHandler(tornado.web.RequestHandler):
 
     def create_content(self, experiment_folder, data):
         if experiment_folder != "":
-            print("!!!!!!!!!!!!!!!!!!!!")
             return u"\n".join(data['html'])
         else:
-            print("AAAAAAAAAAAAAAAAAAAAAAA")
             return html_table(self.experiments_folder, self.get_metrics_fcn, self.metrics_file)
 
     def create_scripts(self, experiment_folder, data):
@@ -186,7 +182,6 @@ class MainHandler(tornado.web.RequestHandler):
 
     def create_page(self, experiment_folder, experiment_path, data):
         title_html = self.create_title(experiment_folder, data)
-        print("BEFORE", data['html'])
         navigation_html = self.create_navigation(experiment_folder, experiment_path, data)
         header_html = self.create_header(experiment_folder, data)
         scripts_html = self.create_scripts(experiment_folder, data)
@@ -375,7 +370,6 @@ def html_navigation(base_dir, selected_experiment=None):
        <h5><a href="/">Experiments</a></h5>
     </header>
     """
-
     items = []
     for exp_dir, exp_path, date_changed in list_experiments(base_dir):
         classes = []
@@ -394,7 +388,7 @@ def html_navigation(base_dir, selected_experiment=None):
                 class=\"edit padding-right\">
                 &nbsp;
             </div>
-            <a class=\"{classes} left-margin\" href=\"?experiment={exp_dir}\" title=\"{title}\" style='padding-left:2px'>{exp_dir}</a>
+            <a class=\"{classes} left-margin\" href=\"/?experiment={exp_dir}\" title=\"{title}\" style='padding-left:2px'>{exp_dir}</a>
             </div>""".format(
                 exp_dir=exp_dir,
                 title=DescriptionToHtml.get_description_html(exp_path, replace_newlines=False),
