@@ -127,9 +127,6 @@ class MainHandler(tornado.web.RequestHandler):
         self.experiments_folder = experiments_folder
         self.html_chain = html_chain
 
-    def get_args(self):
-        return {}
-
     def create_header(self, experiment_folder, data):
         if experiment_folder != "":
             return u"\n".join(u"\n".join(html_lines) for head_section, html_lines in data["header"].items())
@@ -142,8 +139,7 @@ class MainHandler(tornado.web.RequestHandler):
         else:
             return "<h1>Experiments</h1>"
 
-    def create_navigation(self, experiment_folder, experiment_path, data):
-        navigation_html = html_navigation(self.experiments_folder, experiment_folder)
+    def create_navigation(self, navigation_html, experiment_folder, experiment_path, data):
         if experiment_folder != "":
             if os.path.exists(experiment_path + "/custom_flexp_chain.py"):
                 try:
@@ -182,7 +178,8 @@ class MainHandler(tornado.web.RequestHandler):
 
     def create_page(self, experiment_folder, experiment_path, data):
         title_html = self.create_title(experiment_folder, data)
-        navigation_html = self.create_navigation(experiment_folder, experiment_path, data)
+        navigation_html = html_navigation(self.experiments_folder, experiment_folder)
+        navigation_html = self.create_navigation(navigation_html, experiment_folder, experiment_path, data)
         header_html = self.create_header(experiment_folder, data)
         scripts_html = self.create_scripts(experiment_folder, data)
         content_html = self.create_content(experiment_folder, data)
