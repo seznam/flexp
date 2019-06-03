@@ -53,10 +53,12 @@ class CachingChain(Chain, ObjectDumper):
             # PickleCache.chain_info['chain_hash'] created same way: hash_dump_string(object_dump_to_string([module]))
             # content of chain_hash (which modules are used) is controlled by PickleCache logic
             # assume that PickleCache contains only modules that have significant impact on data
+            print(module.chain_info['chain_hash'])
             self.id_hashes.append(module.chain_info['chain_hash'])
         else:
             if hasattr(module, self.UpdateAttrName):
-                self.id_hashes.append(PickleCache.hash_dump_string(self._object_dump_to_string([module], self.max_recursion_level)))
+                self.id_hashes.append(PickleCache.hash_dump_string(self._object_dump_to_string([module],
+                                                                                               self.max_recursion_level)))
             else:
                 self.id_hashes.append("")
 
@@ -93,12 +95,13 @@ class CachingChain(Chain, ObjectDumper):
         """
         start = 0
         updated_ids = self.get_updated_data_ids(data)
+        print("updated_ids", updated_ids)
         for i, module in list(enumerate(self.modules))[::-1]:
             if isinstance(module, PickleCache):
                 # key = hashlib.sha256(self.pickle(updated_ids[i])).hexdigest()
                 file = module.get_cache_file_from_id(updated_ids[i])
                 if os.path.exists(file):
-                    log.debug("We skip first {} modules because cache: {} exists".format(i, file))
+                    log.debug("We skip first {} modules because cache: {} exists (module is {} in a chain)".format(i, file, i+1))
                     start = i
                     break
         for i in range(start, len(self.modules)):

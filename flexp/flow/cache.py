@@ -214,6 +214,7 @@ class PickleCache(Chain, ObjectDumper):
         :param chain: list of modules
         :return: string
         """
+        # todo if like this then PickleCache(m1, m2) + PickleCache(m3) != PickleCache(m1, m2, m3)
         chain_string = self._object_dump_to_string(chain, self.max_recursion_level, debug_level=self.debug_level)
         return self.hash_dump_string(chain_string)
 
