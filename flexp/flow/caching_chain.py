@@ -101,7 +101,7 @@ class CachingChain(Chain, ObjectDumper):
                 # key = hashlib.sha256(self.pickle(updated_ids[i])).hexdigest()
                 file = module.get_cache_file_from_id(updated_ids[i])
                 if os.path.exists(file):
-                    log.debug("We skip first {} modules because cache: {} exists (module is {} in a chain)".format(i, file, i+1))
+                    log.debug("We skip first {} modules because cache: {} exists (module is {} in a chain)".format(i + 1, file, i + 2))
                     start = i
                     break
         for i in range(start, len(self.modules)):

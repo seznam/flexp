@@ -108,7 +108,15 @@ class ObjectDumper(PickleMixin):
                 try:
                     items = sorted(obj.items())
                 except:
-                    items = [(str(i), o) for i, o in enumerate(obj)]
+                    # Try to sort the items.
+                    try:
+                        items = [(str(i), o) for i, o in enumerate(sorted(obj))]
+                    except:
+                        # After all fails, do not sort the insides, but this can be bad.
+                        # Print log that this happens.
+                        items = [(str(i), o) for i, o in enumerate(obj)]
+                        if len(items) > 0:
+                            log.debug("Can't sort insides of object type {}, first element is {}".format(obj.__class__.__name__, items[0][1].__class__.__name__))
 
         if debug_level == 2:
             print("\t"*level+"level: {}, items: {}".format(level, items))
