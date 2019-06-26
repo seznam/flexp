@@ -103,6 +103,7 @@ def run(port=7777, chain=default_html_chain, get_metrics_fcn=default_get_metrics
     here_path = os.path.dirname(os.path.abspath(__file__))
 
     additional_paths = additional_paths if additional_paths else []
+
     app = tornado.web.Application([
         (r"/", MainHandler, main_handler_params),
         (r'/(favicon.ico)', tornado.web.StaticFileHandler, {"path": path.join(here_path, "static/")}),
@@ -120,104 +121,26 @@ def run(port=7777, chain=default_html_chain, get_metrics_fcn=default_get_metrics
 class MainHandler(tornado.web.RequestHandler):
     """Browser's logic is all here."""
 
-    _template = """
-        <!DOCTYPE HTML>
-        <html>
-        <head>
-            <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-            <title>Flexp Browser</title>
-            <link rel="stylesheet" type="text/css" href="/static/w3.css">
-            <link rel="stylesheet" type="text/css" href="/static/jquery-ui.min.css">
-            <link rel="stylesheet" type="text/css" href="/static/style.css">
-            <link rel="icon" type="image/png" href="/static/favicon-32x32.png" sizes="32x32">
-            <link rel="icon" type="image/png" href="/static/favicon-16x16.png" sizes="16x16">
-            <script src="/static/jquery-2.2.3.min.js"></script>
-            <script src="/static/jquery-ui.min.js"></script>
-            <script src="/static/jquery.tablesorter.min.js"></script>
-            <script src="/static/script.js"></script>
-            <!-- HEADER GENERATED FROM CHAIN -- START -->
-            {header}
-            <!-- HEADER GENERATED FROM CHAIN -- END -->
-        </head>
-
-        <body>
-            <nav id='sidenav' class='w3-sidenav w3-light-grey w3-card-4' onclick='nav_onresize()'>
-                {navigation}
-            </nav>
-
-            <section id='main' class="w3-main">
-
-                {title}
-
-                {content}
-
-            </section>
-
-            <footer id='footer'>
-                <p class='info'>Copyright (c) 2016, Seznam.cz, a.s. <br />
-                Tomáš Přinda &lt;tomas.prinda@firma.seznam.cz&gt;</p>
-            </footer>
-
-            <div id="dialog-confirm" title="Delete?">
-              <p>
-                <span class="ui-icon ui-icon-alert" style="float:left; margin:12px 12px 20px 0;"></span>
-                Delete the folder?
-              </p>
-            </div>
-            <div id="dialog-rename" title="Rename">
-                <form>
-                      <label for="new_name">New folder name:</label>
-                      <input type="text" name="new_name" id="new_name" value="" class="text ui-widget-content ui-corner-all" />
-                </form>
-            </div>
-            <div id="edit-txt" title="Replace contents">
-                <form>
-                        <label for="new_content">New content:</label>
-                        <textarea 
-                            cols=50 
-                            rows=10 
-                            type="text" 
-                            name="new_content" 
-                            id="new_content" 
-                            class="text ui-widget-content ui-corner-all"
-                        >
-                        </textarea>
-                </form>
-            </div>
-
-            <!-- SCRIPTS GENERATED FROM CHAIN -- START -->
-            {scripts}
-            <!-- SCRIPTS GENERATED FROM CHAIN -- END -->
-        </body>
-
-        </html>
-        """
-
     def initialize(self, get_metrics_fcn, metrics_file, experiments_folder, html_chain):
         self.get_metrics_fcn = get_metrics_fcn
         self.metrics_file = metrics_file
         self.experiments_folder = experiments_folder
         self.html_chain = html_chain
 
-    def get(self):
-        experiment_folder = self.get_argument("experiment", default="")
-        experiment_path = path.join(self.experiments_folder, experiment_folder)
-
-        if not path.isdir(experiment_path):
-            experiment_folder = ""
-
-        navigation_html = html_navigation(self.experiments_folder, experiment_folder)
-        header_html = ""
-        scripts_html = ""
-
+    def create_header(self, experiment_folder, data):
         if experiment_folder != "":
-            data = {"experiment_path": experiment_path,
-                    "experiment_folder": experiment_folder,
-                    "html": [],
-                    "header": dict(),
-                    "scripts": dict()
-                    }
-            # Use custom chain, if present
+            return u"\n".join(u"\n".join(html_lines) for head_section, html_lines in data["header"].items())
+        else:
+            return ""
+
+    def create_title(self, experiment_folder, data):
+        if experiment_folder != "":
+            return "<h1>{}</h1>".format(experiment_folder)
+        else:
+            return "<h1>Experiments</h1>"
+
+    def create_navigation(self, navigation_html, experiment_folder, experiment_path, data):
+        if experiment_folder != "":
             if os.path.exists(experiment_path + "/custom_flexp_chain.py"):
                 try:
                     custom_flexp_chain = import_by_filename('custom_flexp_chain',
@@ -237,30 +160,49 @@ class MainHandler(tornado.web.RequestHandler):
             html_chain.process(data)
             html_chain.close()
 
-            title_html = "<h1>{}</h1>".format(experiment_folder)
-            content_html = u"\n".join(data['html'])
             navigation_html = html_anchor_navigation(
                 experiment_path, experiment_folder, html_chain) + navigation_html
+        return navigation_html
 
-            header_html = u"\n".join(u"\n".join(html_lines)
-                                     for head_section, html_lines
-                                     in data["header"].items())
-
-            scripts_html = u"\n".join(u"\n".join(script_lines)
-                                      for script_section, script_lines
-                                      in data["scripts"].items())
-
+    def create_content(self, experiment_folder, data):
+        if experiment_folder != "":
+            return u"\n".join(data['html'])
         else:
-            title_html = "<h1>Experiments</h1>"
-            content_html = html_table(self.experiments_folder, self.get_metrics_fcn, self.metrics_file)
+            return html_table(self.experiments_folder, self.get_metrics_fcn, self.metrics_file)
 
-        html = self._template.format(
-            title=title_html,
-            navigation=navigation_html,
-            content=content_html,
-            header=header_html,
-            scripts=scripts_html)
-        self.write(html)
+    def create_scripts(self, experiment_folder, data):
+        if experiment_folder != "":
+            return  u"\n".join(u"\n".join(script_lines) for script_section, script_lines in data["scripts"].items())
+        else:
+            return ""
+
+    def create_page(self, experiment_folder, experiment_path, data):
+        title_html = self.create_title(experiment_folder, data)
+        navigation_html = html_navigation(self.experiments_folder, experiment_folder)
+        navigation_html = self.create_navigation(navigation_html, experiment_folder, experiment_path, data)
+        header_html = self.create_header(experiment_folder, data)
+        scripts_html = self.create_scripts(experiment_folder, data)
+        content_html = self.create_content(experiment_folder, data)
+
+        self.render("template.html", title=title_html, navigation=navigation_html, content=content_html,
+                    header=header_html, scripts=scripts_html)
+
+    def get(self):
+
+        experiment_folder = self.get_argument("experiment", default="")
+        experiment_path = path.join(self.experiments_folder, experiment_folder)
+
+        if not path.isdir(experiment_path):
+            experiment_folder = ""
+
+        data = {"experiment_path": experiment_path,
+                "experiment_folder": experiment_folder,
+                "html": [],
+                "header": dict(),
+                "scripts": dict()
+                }
+
+        self.create_page(experiment_folder, experiment_path, data)
 
 
 # ----------  default functions for AJAX handler
@@ -327,6 +269,9 @@ class AjaxHandler(tornado.web.RequestHandler):
         if action not in actions:
             raise ValueError("Unknown action {}".format(action))
         actions[action](value, self)
+
+
+# ----------  HTML
 
 
 def html_table(base_dir, get_metrics_fcn, metrics_file):
@@ -422,7 +367,6 @@ def html_navigation(base_dir, selected_experiment=None):
        <h5><a href="/">Experiments</a></h5>
     </header>
     """
-
     items = []
     for exp_dir, exp_path, date_changed in list_experiments(base_dir):
         classes = []
@@ -441,7 +385,7 @@ def html_navigation(base_dir, selected_experiment=None):
                 class=\"edit padding-right\">
                 &nbsp;
             </div>
-            <a class=\"{classes} left-margin\" href=\"?experiment={exp_dir}\" title=\"{title}\" style='padding-left:2px'>{exp_dir}</a>
+            <a class=\"{classes} left-margin\" href=\"/?experiment={exp_dir}\" title=\"{title}\" style='padding-left:2px'>{exp_dir}</a>
             </div>""".format(
                 exp_dir=exp_dir,
                 title=DescriptionToHtml.get_description_html(exp_path, replace_newlines=False),
