@@ -4,7 +4,7 @@ from __future__ import absolute_import
 from __future__ import division
 
 import collections
-import time
+import timeit
 import types
 
 from flexp.utils import get_logger
@@ -67,7 +67,7 @@ class Chain(object):
         """
         if not module:
             return
-        if isinstance(module, collections.Iterable):
+        if isinstance(module, collections.abc.Iterable):
             for m in module:
                 self._add(m)
         else:
@@ -120,9 +120,9 @@ class Chain(object):
                 else:
                     log.debug("{}()".format(self.names[i]))
                     process_func = self.modules[i]
-                start = time.clock()
+                start = timeit.default_timer()
                 process_func(data)
-                end = time.clock()
+                end = timeit.default_timer()
                 self.times[i] += (end - start)
             except StopIteration:
                 log.debug("{} requested stop. Processing stopped".format(

@@ -7,7 +7,7 @@ import unittest
 from flexp.flow import cache
 
 
-class TestModule:
+class DummyModule:
 
     PickleCacheBlackList = ['attr3']
 
@@ -37,20 +37,20 @@ class TestCache(unittest.TestCase):
     def test_cache(self):
 
         c = cache.PickleCache(self.cache_dir, "input", chain=[
-            TestModule(12, 14, 18),
+            DummyModule(12, 14, 18),
         ])
         c.process({"input": 10})
 
         # different value for attribute from black list
         c2 = cache.PickleCache(self.cache_dir, "input", chain=[
-            TestModule(12, 14, 20),
+            DummyModule(12, 14, 20),
         ])
         c2.process({"input": 10})
         self.assertEqual(c.chain_info['chain_hash'], c2.chain_info['chain_hash'])
 
         # different value for attribute that is not in black list
         c3 = cache.PickleCache(self.cache_dir, "input", chain=[
-            TestModule(12, 12, 18),
+            DummyModule(12, 12, 18),
         ])
         c3.process({"input": 10})
         self.assertFalse(c.chain_info['chain_hash'] == c3.chain_info['chain_hash'])

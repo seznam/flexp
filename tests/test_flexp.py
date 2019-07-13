@@ -3,10 +3,8 @@
 import atexit
 import io
 import os
-import time
 from os import path
 import shutil
-from pprint import pprint
 
 import pytest
 

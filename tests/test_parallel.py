@@ -1,7 +1,8 @@
 from __future__ import print_function
 
-import time
+import timeit
 import unittest
+
 
 from flexp.flow.parallel import parallelize
 
@@ -16,9 +17,11 @@ class TestParallel(unittest.TestCase):
         count = 50
         data = range(0, count)
 
-        start = time.clock()
+        start = timeit.default_timer()
         res = list(parallelize(add_two, data, 25))
-        end = time.clock()
+        end = timeit.default_timer()
+
         print("Time to process {}".format(end - start))
+
         assert len(res) == count
         assert sum(res) == (2 + count + 1) * count / 2
