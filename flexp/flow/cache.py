@@ -158,7 +158,18 @@ class PickleCache(Chain, ObjectDumper):
     """
 
     def __init__(self, directory, data_key="id", chain=None, force=False,
-                 max_recursion_level=10, dir_rights=0o777, debug_level=0):
+                 max_recursion_level=10, dir_rights=0o777, debug_level=0, save_cache=True):
+        """
+
+        :param directory:
+        :param data_key:
+        :param chain:
+        :param boolean force: if True then will not read the cache
+        :param max_recursion_level:
+        :param dir_rights:
+        :param int debug_level:
+        :param boolean force: if True then will dump the cache
+        """
         super(PickleCache, self).__init__(chain)
         self.directory = directory
         self.force = force
@@ -169,6 +180,7 @@ class PickleCache(Chain, ObjectDumper):
         self.chain_info = {'chain_len': 0, 'chain_hash': None,
                            'chain_mtime': None,
                            'chain_repr': None}
+        self.save_cache = save_cache
         # update chain info
         if chain is not None:
             self.hash_chain()
@@ -367,11 +379,12 @@ class PickleCache(Chain, ObjectDumper):
             log.debug("Not found in cache, processing chain")
             cache, stop = self._process(data, {})
             cache = cache[self.chain_info['chain_hash']]
-            with open(file, 'wb') as f:
-                try:
-                    pickle.dump(cache, f, protocol=4)
-                except:
-                    pickle.dump(cache, f)
+            if self.save_cache:
+                with open(file, 'wb') as f:
+                    try:
+                        pickle.dump(cache, f, protocol=4)
+                    except:
+                        pickle.dump(cache, f)
 
             # Try to set some more flexible access rights
             try:

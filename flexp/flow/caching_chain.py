@@ -26,7 +26,7 @@ class CachingChain(Chain, ObjectDumper):
     SEPARATOR = "|"
 
     def __init__(self, chain=None, check=False, name=None, ignore_first_module_requirements=True, update_data_id='id',
-                 max_recursion_level=10):
+                 max_recursion_level=10, force=False, save_cache=True, propagate_flags=False):
         """Set up modules.
         :param list[object|function]|object|function chain: one module or
         list of modules
@@ -39,6 +39,9 @@ class CachingChain(Chain, ObjectDumper):
         self.id_hashes = []
         self.update_data_id = update_data_id
         self.max_recursion_level = max_recursion_level
+        self.force = force
+        self.save_cache = save_cache
+        self.propagate_flags = propagate_flags
         super().__init__(chain, check, name, ignore_first_module_requirements)
 
     def _add(self, module):
@@ -95,15 +98,17 @@ class CachingChain(Chain, ObjectDumper):
         """
         start = 0
         updated_ids = self.get_updated_data_ids(data)
-        print("updated_ids", updated_ids)
-        for i, module in list(enumerate(self.modules))[::-1]:
-            if isinstance(module, PickleCache):
-                # key = hashlib.sha256(self.pickle(updated_ids[i])).hexdigest()
-                file = module.get_cache_file_from_id(updated_ids[i])
-                if os.path.exists(file):
-                    log.debug("We skip first {} modules because cache: {} exists (module is {} in a chain)".format(i + 1, file, i + 2))
-                    start = i
-                    break
+        if self.force:
+            log.debug("Force module processing, do not skip anything")
+        else:
+            for i, module in list(enumerate(self.modules))[::-1]:
+                if isinstance(module, PickleCache):
+                    # key = hashlib.sha256(self.pickle(updated_ids[i])).hexdigest()
+                    file = module.get_cache_file_from_id(updated_ids[i])
+                    if os.path.exists(file):
+                        log.debug("We skip first {} modules because cache: {} exists (module is {} in a chain)".format(i + 1, file, i + 2))
+                        start = i
+                        break
         for i in range(start, len(self.modules)):
             try:
                 if hasattr(self.modules[i], "process"):
@@ -112,6 +117,10 @@ class CachingChain(Chain, ObjectDumper):
                 else:
                     log.debug("{}()".format(self.names[i]))
                     process_func = self.modules[i]
+                # propagate self.force to PickleCache modules in modules list
+                if self.propagate_flags and hasattr(self.modules[i], 'force'):
+                    self.modules[i].force = self.force
+                    self.modules[i].save_cache = self.save_cache
                 start = time.clock()
                 # update data ket from list before running module
                 setattr(data, self.update_data_id,  updated_ids[i])
