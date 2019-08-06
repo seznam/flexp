@@ -42,6 +42,7 @@ class CachingChain(Chain, ObjectDumper):
         self.force = force
         self.save_cache = save_cache
         self.propagate_flags = propagate_flags
+
         super().__init__(chain, check, name, ignore_first_module_requirements)
 
     def _add(self, module):
@@ -56,7 +57,7 @@ class CachingChain(Chain, ObjectDumper):
             # PickleCache.chain_info['chain_hash'] created same way: hash_dump_string(object_dump_to_string([module]))
             # content of chain_hash (which modules are used) is controlled by PickleCache logic
             # assume that PickleCache contains only modules that have significant impact on data
-            print(module.chain_info['chain_hash'])
+            log.debug(module.chain_info['chain_hash'])
             self.id_hashes.append(module.chain_info['chain_hash'])
         else:
             if hasattr(module, self.UpdateAttrName):
@@ -101,7 +102,7 @@ class CachingChain(Chain, ObjectDumper):
         if self.force:
             log.debug("Force module processing, do not skip anything")
         else:
-            for i, module in list(enumerate(self.modules))[::-1]:
+            for i, module in reversed(enumerate(self.modules)):
                 if isinstance(module, PickleCache):
                     # key = hashlib.sha256(self.pickle(updated_ids[i])).hexdigest()
                     file = module.get_cache_file_from_id(updated_ids[i])

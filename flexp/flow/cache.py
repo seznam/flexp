@@ -4,6 +4,7 @@ from __future__ import absolute_import
 from __future__ import division
 
 from copy import deepcopy, copy
+from pickle import HIGHEST_PROTOCOL
 
 import six
 import collections
@@ -382,7 +383,7 @@ class PickleCache(Chain, ObjectDumper):
             if self.save_cache:
                 with open(file, 'wb') as f:
                     try:
-                        pickle.dump(cache, f, protocol=4)
+                        pickle.dump(cache, f, protocol=HIGHEST_PROTOCOL)
                     except:
                         pickle.dump(cache, f)
 
