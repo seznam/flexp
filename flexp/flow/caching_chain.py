@@ -102,7 +102,7 @@ class CachingChain(Chain, ObjectDumper):
         if self.force:
             log.debug("Force module processing, do not skip anything")
         else:
-            for i, module in reversed(enumerate(self.modules)):
+            for i, module in list(enumerate(self.modules))[::-1]:
                 if isinstance(module, PickleCache):
                     # key = hashlib.sha256(self.pickle(updated_ids[i])).hexdigest()
                     file = module.get_cache_file_from_id(updated_ids[i])
